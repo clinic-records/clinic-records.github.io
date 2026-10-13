@@ -464,7 +464,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
                     return
                 }
                 
-                let currentVer = "v1.0.4"
+                let currentVer = "v1.0.5"
                 if latestTag.compare(currentVer, options: .numeric) == .orderedDescending {
                     let alert = NSAlert()
                     alert.messageText = "يوجد تحديث جديد متاح (\(latestTag))!"

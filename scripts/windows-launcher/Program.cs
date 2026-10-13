@@ -566,7 +566,7 @@ namespace ClinicRecordsLauncher
                     var tagMatch = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
                     var htmlMatch = Regex.Match(json, "\"html_url\"\\s*:\\s*\"([^\"]+)\"");
 
-                    string currentVersion = "v1.0.4";
+                    string currentVersion = "v1.0.5";
                     if (tagMatch.Success)
                     {
                         string latest = tagMatch.Groups[1].Value;
