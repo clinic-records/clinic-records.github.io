@@ -24,7 +24,55 @@
     <div class="nav-container">
       <div class="brand-section">
         <div class="brand-icon">
-          <img src="/logo.svg" alt="Clinic Records Logo" width="46" height="46" class="brand-logo-img">
+          <svg class="brand-logo-svg" width="46" height="46" viewBox="0 0 120 120" fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="navTealGlassBg" x1="15" y1="15" x2="105" y2="105" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.22" />
+                <stop offset="50%" stop-color="#0d9488" stop-opacity="0.10" />
+                <stop offset="100%" stop-color="#0f766e" stop-opacity="0.26" />
+              </linearGradient>
+              <linearGradient id="navTealGlassBorder" x1="10" y1="10" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#ccfbf1" stop-opacity="0.85" />
+                <stop offset="35%" stop-color="#5eead4" stop-opacity="0.6" />
+                <stop offset="70%" stop-color="#0d9488" stop-opacity="0.4" />
+                <stop offset="100%" stop-color="#14b8a6" stop-opacity="0.75" />
+              </linearGradient>
+              <linearGradient id="navCrossTeal" x1="20" y1="20" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#2dd4bf" />
+                <stop offset="40%" stop-color="#0d9488" />
+                <stop offset="80%" stop-color="#0f766e" />
+                <stop offset="100%" stop-color="#115e59" />
+              </linearGradient>
+              <linearGradient id="navPulseTeal" x1="12" y1="60" x2="108" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#2dd4bf" />
+                <stop offset="45%" stop-color="#0d9488" />
+                <stop offset="65%" stop-color="#14b8a6" />
+                <stop offset="100%" stop-color="#10b981" />
+              </linearGradient>
+              <filter id="navTealGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            <rect x="8" y="8" width="104" height="104" rx="28" fill="url(#navTealGlassBg)"
+              stroke="url(#navTealGlassBorder)" stroke-width="1.8" />
+            <rect x="12" y="12" width="96" height="96" rx="24" stroke="rgba(255, 255, 255, 0.2)" stroke-width="1"
+              fill="none" />
+            <path
+              d="M 49 22 C 46 22, 44 24, 44 27 L 44 44 L 27 44 C 24 44, 22 46, 22 49 L 22 71 C 22 74, 24 76, 27 76 L 44 76 L 44 93 C 44 96, 46 98, 49 98 L 71 98 C 74 98, 76 96, 76 93 L 76 76 L 93 76 C 96 76, 98 74, 98 71 L 98 49 C 98 46, 96 44, 93 44 L 76 44 L 76 33 L 65 22 Z"
+              fill="rgba(13, 148, 136, 0.14)" stroke="url(#navCrossTeal)" stroke-width="3.2" stroke-linejoin="round"
+              stroke-linecap="round" filter="url(#navTealGlow)" />
+            <path d="M 65 22 L 65 33 L 76 33 Z" fill="url(#navCrossTeal)" stroke="url(#navCrossTeal)" stroke-width="1.6"
+              stroke-linejoin="round" />
+            <path
+              d="M 50 28 L 50 48 C 50 49, 49 50, 48 50 L 28 50 L 28 70 L 48 70 C 49 70, 50 71, 50 72 L 50 92 L 70 92 L 70 72 C 70 71, 71 70, 72 70 L 92 70 L 92 50 L 72 50 C 71 50, 70 49, 70 48 L 70 37 L 63 28 Z"
+              fill="none" stroke="url(#navCrossTeal)" stroke-width="1.6" stroke-opacity="0.55"
+              stroke-linejoin="round" />
+            <path d="M 14 60 L 42 60 L 46 52 L 50 70 L 56 36 L 62 82 L 68 50 L 72 65 L 76 60 L 106 60"
+              stroke="url(#navPulseTeal)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"
+              filter="url(#navTealGlow)" />
+          </svg>
         </div>
         <div>
           <h1 class="brand-title">سجلات العيادة الطبية</h1>
@@ -790,7 +838,8 @@
         <div class="backup-alert-note">
           <span class="note-icon">💡</span>
           <div>
-            <strong>تخزين آمن:</strong> يتم حفظ جميع النسخ تلقائياً في مجلد <code>backups/</code> على السيرفر. عند طلب الاستعادة، يتم إنشاء نسخة احترازية تلقائياً قبل تطبيق الاسترجاع.
+            <strong>تخزين آمن:</strong> يتم حفظ جميع النسخ تلقائياً في مجلد <code>backups/</code> على السيرفر. عند طلب
+            الاستعادة، يتم إنشاء نسخة احترازية تلقائياً قبل تطبيق الاسترجاع.
           </div>
         </div>
 
