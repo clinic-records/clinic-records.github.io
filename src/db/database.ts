@@ -160,8 +160,7 @@ export class ClinicDatabase {
     if (fs.existsSync(walFile)) fs.unlinkSync(walFile);
     if (fs.existsSync(shmFile)) fs.unlinkSync(shmFile);
 
-    this.db = new DatabaseConstructor(this.dbPath);
-    initDatabaseSchema(this.db);
+    this.db = createDatabaseConnection(this.dbPath);
 
     // Rebind repositories to the new connection
     (this as any).patients = new PatientsRepository(this.db);

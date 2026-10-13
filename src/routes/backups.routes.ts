@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { ClinicDatabase } from '../db/database.js';
 import { AppConfig } from '../config.js';
+import { realtimeManager } from '../utils/realtime.js';
 
 export function registerBackupsRoutes(
   app: FastifyInstance,
@@ -99,6 +100,7 @@ export function registerBackupsRoutes(
 
       // Restore database
       db.restoreDatabase(backupFilePath);
+      realtimeManager.broadcastPatientsListChanged();
 
       return reply.send({
         success: true,
@@ -140,6 +142,7 @@ export function registerBackupsRoutes(
 
       // Restore database
       db.restoreDatabase(uploadedPath);
+      realtimeManager.broadcastPatientsListChanged();
 
       return reply.send({
         success: true,

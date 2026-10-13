@@ -32,7 +32,7 @@ export function prepareFtsQuery(query: string): string {
   if (!normalized) return '';
 
   const words = normalized
-    .replace(/["'*^:]/g, '')
+    .replace(/["'*^:(){}[\]~\\/]/g, ' ')
     .split(/\s+/)
     .filter((w) => w.length > 0);
 
