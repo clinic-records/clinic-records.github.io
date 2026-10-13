@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -18,6 +19,13 @@ namespace ClinicRecordsLauncher
         [STAThread]
         static void Main()
         {
+            try
+            {
+                // Force TLS 1.2 and TLS 1.3 protocol support on Windows for GitHub API
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)12288 | SecurityProtocolType.Tls;
+            }
+            catch { }
+
             bool createdNew;
             showWindowHandle = new EventWaitHandle(false, EventResetMode.AutoReset, "ClinicPatientRecordsShowWindowEvent", out createdNew);
 
@@ -543,9 +551,15 @@ namespace ClinicRecordsLauncher
 
             try
             {
+                try
+                {
+                    ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)12288 | SecurityProtocolType.Tls;
+                }
+                catch { }
+
                 using (HttpClient client = new HttpClient())
                 {
-                    client.DefaultRequestHeaders.Add("User-Agent", "ClinicRecords-Windows");
+                    client.DefaultRequestHeaders.Add("User-Agent", "ClinicRecords-Windows-App");
                     client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
                     string json = await client.GetStringAsync("https://api.github.com/repos/clinic-records/clinic-records.github.io/releases/latest");
 
@@ -559,14 +573,33 @@ namespace ClinicRecordsLauncher
                         if (string.Compare(latest, currentVersion, StringComparison.OrdinalIgnoreCase) > 0)
                         {
                             var res = MessageBox.Show(
-                                "يوجد إصدار أحدث متاح (" + latest + ")!\nهل ترغب في فتح صفحة التحميل للحصول على النسخة الجديدة؟",
-                                "تحديث جديد متاح",
+                                "يوجد إصدار أحدث متوفر (" + latest + ")!\n\nهل ترغب في تثبيت التحديث وإعادة تشغيل البرنامج تلقائياً الآن؟\n(ملاحظة: سيتم أخذ نسخة احتياطية تأمينية للبيانات تلقائياً)",
+                                "تحديث جديد متوفر",
                                 MessageBoxButtons.YesNo,
                                 MessageBoxIcon.Information
                             );
-                            if (res == DialogResult.Yes && htmlMatch.Success)
+                            if (res == DialogResult.Yes)
                             {
-                                Process.Start(new ProcessStartInfo(htmlMatch.Groups[1].Value) { UseShellExecute = true });
+                                btnCheckUpdate.Text = "جارٍ التحديث...";
+                                try
+                                {
+                                    using (var localClient = new HttpClient())
+                                    {
+                                        var postRes = await localClient.PostAsync("http://127.0.0.1:" + currentPort + "/api/system/update/install", new StringContent(""));
+                                        if (postRes.IsSuccessStatusCode)
+                                        {
+                                            MessageBox.Show("بدأت عملية التحديث بنجاح.\nسيتم تنزيل الحزمة وتحديث الملفات وإعادة تشغيل البرنامج تلقائياً خلال لحظات.", "تحديث المنظومة", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                        }
+                                        else
+                                        {
+                                            if (htmlMatch.Success) Process.Start(new ProcessStartInfo(htmlMatch.Groups[1].Value) { UseShellExecute = true });
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    if (htmlMatch.Success) Process.Start(new ProcessStartInfo(htmlMatch.Groups[1].Value) { UseShellExecute = true });
+                                }
                             }
                         }
                         else

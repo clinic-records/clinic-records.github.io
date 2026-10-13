@@ -92,6 +92,14 @@ class RealtimeManager {
     });
   }
 
+  public broadcastServerUpdating(): void {
+    this.broadcast({
+      type: 'server_updating',
+      message: 'جارٍ تطبيق تحديث للمنظومة على الخادم وإعادة التشغيل (خلال ثوانٍ معدودة)...',
+      timestamp: Date.now(),
+    });
+  }
+
   private broadcast(data: Record<string, any>): void {
     const payload = `data: ${JSON.stringify(data)}\n\n`;
     for (const [clientId, client] of this.clients.entries()) {

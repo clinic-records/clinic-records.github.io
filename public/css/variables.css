@@ -1,0 +1,66 @@
+/* ==========================================================================
+   Clinic Patient Records System - Theme & Design System Tokens
+   Inspired by human growth, care, and developmental vitality palette
+   ========================================================================== */
+
+:root {
+  --font-arabic: 'Cairo', system-ui, -apple-system, sans-serif;
+  --font-latin: 'Outfit', system-ui, -apple-system, sans-serif;
+
+  /* Inspired by tree leaves & trunk palette: Teal, Amber, Green, Rose, Purple, Warm Wood */
+  --bg-main: #fcfbf9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f7f5f0;
+  --bg-input: #ffffff;
+  --border-color: #e9e5dd;
+  --border-focus: #0d9488;
+
+  --text-main: #292524;
+  --text-muted: #78716c;
+  --text-inverse: #ffffff;
+
+  /* Primary: Vibrant Teal */
+  --primary: #0d9488;
+  --primary-hover: #0f766e;
+  --primary-light: #ccfbf1;
+  --primary-border: #99f6e4;
+
+  /* Accent: Golden Sun Amber */
+  --accent-amber: #f59e0b;
+  --accent-amber-light: #fef3c7;
+
+  /* Accent: Berry Rose */
+  --accent-rose: #e11d48;
+  --accent-rose-light: #ffe4e6;
+
+  /* Accent: Growth Lime Green */
+  --accent-lime: #84cc16;
+  --accent-lime-light: #ecfccb;
+
+  /* Accent: Royal Violet */
+  --accent-purple: #7c3aed;
+  --accent-purple-light: #f3e8ff;
+
+  /* Earthy Warm Bark */
+  --accent-bark: #6d4830;
+  --accent-bark-light: #f5ede6;
+
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+  --danger: #e11d48;
+  --danger-light: #fee2e2;
+
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.07);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
