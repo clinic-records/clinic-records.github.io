@@ -46,7 +46,14 @@ class Program {
 }
 '@
 
-Add-Type -TypeDefinition $source -Language CSharp -OutputAssembly "$pkgDir/Clinic Records.exe" -OutputType WindowsApplication
+Set-Content -Path "launcher.cs" -Value $source
+$csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+if (Test-Path $csc) {
+    & $csc /nologo /target:winexe /out:"$pkgDir\Clinic Records.exe" launcher.cs
+} else {
+    csc /nologo /target:winexe /out:"$pkgDir\Clinic Records.exe" launcher.cs
+}
+Remove-Item -Force "launcher.cs"
 
 # Create empty keep files
 New-Item -ItemType File -Force -Path "$pkgDir/data/.gitkeep"
