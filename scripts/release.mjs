@@ -85,13 +85,13 @@ console.log('\n📦 Step 2/5: Testing production bundle...');
 run('npm run build', 'Compiling production server bundle with esbuild');
 console.log('   ✅ Bundle built cleanly in dist/server.js.');
 
-// 5. Synchronize version across all platform files
-console.log('\n🔄 Step 3/5: Synchronizing version across multi-platform files...');
+// 5. Update Single Source of Truth (package.json & package-lock.json)
+console.log('\n🔄 Step 3/5: Updating Single Source of Truth (package.json)...');
 
 // A. package.json
 pkg.version = newVersion;
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
-console.log(`   ✓ package.json -> ${newVersion}`);
+console.log(`   ✓ package.json -> ${newVersion} (Single Source of Truth)`);
 
 // B. package-lock.json
 const lockPath = path.resolve(ROOT_DIR, 'package-lock.json');
@@ -105,65 +105,7 @@ if (fs.existsSync(lockPath)) {
   console.log(`   ✓ package-lock.json -> ${newVersion}`);
 }
 
-// C. Windows C# Launcher (Program.cs)
-const winProgramPath = path.resolve(ROOT_DIR, 'scripts', 'windows-launcher', 'Program.cs');
-if (fs.existsSync(winProgramPath)) {
-  let content = fs.readFileSync(winProgramPath, 'utf-8');
-  content = content.replace(
-    /string currentVersion = "v\d+\.\d+\.\d+";/,
-    `string currentVersion = "${newTag}";`
-  );
-  fs.writeFileSync(winProgramPath, content, 'utf-8');
-  console.log(`   ✓ scripts/windows-launcher/Program.cs -> ${newTag}`);
-}
-
-// D. macOS Swift Launcher (main.swift)
-const macSwiftPath = path.resolve(ROOT_DIR, 'scripts', 'macos-launcher', 'main.swift');
-if (fs.existsSync(macSwiftPath)) {
-  let content = fs.readFileSync(macSwiftPath, 'utf-8');
-  content = content.replace(
-    /let currentVer = "v\d+\.\d+\.\d+"/,
-    `let currentVer = "${newTag}"`
-  );
-  fs.writeFileSync(macSwiftPath, content, 'utf-8');
-  console.log(`   ✓ scripts/macos-launcher/main.swift -> ${newTag}`);
-}
-
-// E. macOS App Info.plist generator (package-macos.sh)
-const macPkgScript = path.resolve(ROOT_DIR, 'scripts', 'package-macos.sh');
-if (fs.existsSync(macPkgScript)) {
-  let content = fs.readFileSync(macPkgScript, 'utf-8');
-  content = content.replace(
-    /<key>CFBundleShortVersionString<\/key>\s*<string>\d+\.\d+\.\d+<\/string>/,
-    `<key>CFBundleShortVersionString</key>\n    <string>${newVersion}</string>`
-  );
-  fs.writeFileSync(macPkgScript, content, 'utf-8');
-  console.log(`   ✓ scripts/package-macos.sh -> ${newVersion}`);
-}
-
-// F. Server updater fallback (src/utils/updater.ts)
-const updaterPath = path.resolve(ROOT_DIR, 'src', 'utils', 'updater.ts');
-if (fs.existsSync(updaterPath)) {
-  let content = fs.readFileSync(updaterPath, 'utf-8');
-  content = content.replace(
-    /return 'v\d+\.\d+\.\d+';/,
-    `return '${newTag}';`
-  );
-  fs.writeFileSync(updaterPath, content, 'utf-8');
-  console.log(`   ✓ src/utils/updater.ts -> ${newTag}`);
-}
-
-// G. Web UI placeholder label (public/index.html)
-const indexPath = path.resolve(ROOT_DIR, 'public', 'index.html');
-if (fs.existsSync(indexPath)) {
-  let content = fs.readFileSync(indexPath, 'utf-8');
-  content = content.replace(
-    /<strong id="update-current-version-label">v\d+\.\d+\.\d+<\/strong>/,
-    `<strong id="update-current-version-label">${newTag}</strong>`
-  );
-  fs.writeFileSync(indexPath, content, 'utf-8');
-  console.log(`   ✓ public/index.html -> ${newTag}`);
-}
+console.log('   ℹ️  All platform targets (Windows C#, macOS Swift, Linux, Bash, UI) dynamically resolve version from package.json.');
 
 // 6. Git commit and tag
 console.log('\n🏷️  Step 4/5: Creating Git commit and release tag...');

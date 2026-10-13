@@ -53,7 +53,7 @@ class SystemUpdater {
         } catch { }
       }
     }
-    return 'v1.0.5';
+    return 'v1.0.0';
   }
 
   public getStatus(): UpdateStatus {

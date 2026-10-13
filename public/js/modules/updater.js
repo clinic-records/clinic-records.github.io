@@ -28,7 +28,7 @@ export async function checkForAppUpdates(elements) {
 export function openUpdateModal(elements, data) {
   if (!data) return;
   if (elements.updateCurrentVersionLabel) {
-    elements.updateCurrentVersionLabel.textContent = data.currentVersion || 'v1.0.5';
+    elements.updateCurrentVersionLabel.textContent = data.currentVersion || '-';
   }
   if (elements.updateLatestVersionLabel) {
     elements.updateLatestVersionLabel.textContent = data.latestVersion;

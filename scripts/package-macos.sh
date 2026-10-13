@@ -38,6 +38,8 @@ if [ -f "assets/AppIcon.icns" ]; then
     cp assets/AppIcon.icns "$CONTENTS/Resources/AppIcon.icns"
 fi
 
+APP_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "1.0.0")
+
 # Create Info.plist with icon binding
 cat << EOF > "$CONTENTS/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -55,7 +57,7 @@ cat << EOF > "$CONTENTS/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.5</string>
+    <string>${APP_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>${MIN_OS}</string>
 </dict>
@@ -88,10 +90,9 @@ chmod +x "$PKG_NAME/start-debug.command"
 
 touch "$PKG_NAME/data/.gitkeep"
 touch "$PKG_NAME/backups/.gitkeep"
-VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
-if [ -n "$VERSION" ]; then
+if [ -n "$APP_VERSION" ]; then
     SUFFIX=$(echo "$PKG_NAME" | sed 's/^ClinicRecords-//')
-    ZIP_NAME="ClinicRecords-v${VERSION}-${SUFFIX}.zip"
+    ZIP_NAME="ClinicRecords-v${APP_VERSION}-${SUFFIX}.zip"
 else
     ZIP_NAME="${PKG_NAME}.zip"
 fi

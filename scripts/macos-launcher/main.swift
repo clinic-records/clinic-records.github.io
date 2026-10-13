@@ -515,7 +515,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
                     return
                 }
                 
-                let currentVer = "v1.0.5"
+                let currentVer = self?.getCurrentAppVersion() ?? "v1.0.0"
                 if latestTag.compare(currentVer, options: .numeric) == .orderedDescending {
                     let alert = NSAlert()
                     alert.messageText = "يوجد تحديث جديد متاح (\(latestTag))!"
@@ -535,6 +535,19 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
                 }
             }
         }.resume()
+    }
+    
+    private func getCurrentAppVersion() -> String {
+        if let infoVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !infoVer.isEmpty {
+            return infoVer.hasPrefix("v") ? infoVer : "v\(infoVer)"
+        }
+        let pkgPath = "\(ServerManager.shared.workingDir)/package.json"
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: pkgPath)),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let v = json["version"] as? String {
+            return v.hasPrefix("v") ? v : "v\(v)"
+        }
+        return "v1.0.0"
     }
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {

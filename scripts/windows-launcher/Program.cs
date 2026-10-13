@@ -615,7 +615,7 @@ namespace ClinicRecordsLauncher
                     var tagMatch = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
                     var htmlMatch = Regex.Match(json, "\"html_url\"\\s*:\\s*\"([^\"]+)\"");
 
-                    string currentVersion = "v1.0.5";
+                    string currentVersion = GetCurrentAppVersion();
                     if (tagMatch.Success)
                     {
                         string latest = tagMatch.Groups[1].Value;
@@ -667,6 +667,33 @@ namespace ClinicRecordsLauncher
                 btnCheckUpdate.Enabled = true;
                 btnCheckUpdate.Text = "فحص التحديثات";
             }
+        }
+
+        private string GetCurrentAppVersion()
+        {
+            try
+            {
+                string[] candidates = new string[]
+                {
+                    Path.Combine(appDir, "resources", "package.json"),
+                    Path.Combine(appDir, "package.json")
+                };
+                foreach (var p in candidates)
+                {
+                    if (File.Exists(p))
+                    {
+                        string txt = File.ReadAllText(p);
+                        var m = Regex.Match(txt, "\"version\"\\s*:\\s*\"([^\"]+)\"");
+                        if (m.Success)
+                        {
+                            string v = m.Groups[1].Value.Trim();
+                            return v.StartsWith("v") ? v : "v" + v;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return "v1.0.0";
         }
 
         public void ShowDashboard()
