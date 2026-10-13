@@ -215,7 +215,7 @@ namespace ClinicRecordsLauncher
                 lblStatus.ForeColor = Color.FromArgb(13, 148, 136);
                 btnToggleServer.Text = "إيقاف السيرفر";
 
-                Task.Run(PollServerNetwork);
+                Task.Run(async () => await PollServerNetwork());
             }
             catch (Exception ex)
             {

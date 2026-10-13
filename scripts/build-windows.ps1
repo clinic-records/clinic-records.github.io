@@ -55,6 +55,9 @@ if (Test-Path $csc) {
 } else {
     csc $cscArgs
 }
+if ($LASTEXITCODE -ne 0) {
+    throw "csc.exe compilation failed with exit code $LASTEXITCODE"
+}
 
 # Create empty keep files
 New-Item -ItemType File -Force -Path "$pkgDir/data/.gitkeep"
