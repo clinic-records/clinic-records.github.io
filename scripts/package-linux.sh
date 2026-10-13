@@ -7,11 +7,11 @@ echo "Packaging Linux bundle for $PKG_DIR..."
 
 mkdir -p "$PKG_DIR/data" "$PKG_DIR/backups" "$PKG_DIR/storage/patients" "$PKG_DIR/runtime/bin"
 
-# Download standalone Node.js binary for Linux
-curl -fsSL "https://nodejs.org/dist/v20.18.0/node-v20.18.0-linux-x64.tar.gz" | tar -xz
-cp node-v20.18.0-linux-x64/bin/node "$PKG_DIR/runtime/bin/node"
+# Download standalone Node.js binary for Linux (Node 22 LTS)
+curl -fsSL "https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.gz" | tar -xz
+cp node-v22.14.0-linux-x64/bin/node "$PKG_DIR/runtime/bin/node"
 chmod +x "$PKG_DIR/runtime/bin/node"
-rm -rf node-v20.18.0-linux-x64
+rm -rf node-v22.14.0-linux-x64
 
 # Copy application files
 cp -r dist "$PKG_DIR/"

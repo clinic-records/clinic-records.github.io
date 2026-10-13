@@ -14,11 +14,11 @@ MACOS_BIN="$CONTENTS/MacOS"
 
 mkdir -p "$MACOS_BIN" "$PKG_NAME/data" "$PKG_NAME/backups" "$PKG_NAME/storage/patients" "$RESOURCES/runtime/bin"
 
-# Download standalone Node.js binary for this architecture
-curl -fsSL "https://nodejs.org/dist/v20.18.0/node-v20.18.0-${ARCH}.tar.gz" | tar -xz
-cp "node-v20.18.0-${ARCH}/bin/node" "$RESOURCES/runtime/bin/node"
+# Download standalone Node.js binary for this architecture (Node 22 LTS)
+curl -fsSL "https://nodejs.org/dist/v22.14.0/node-v22.14.0-${ARCH}.tar.gz" | tar -xz
+cp "node-v22.14.0-${ARCH}/bin/node" "$RESOURCES/runtime/bin/node"
 chmod +x "$RESOURCES/runtime/bin/node"
-rm -rf "node-v20.18.0-${ARCH}"
+rm -rf "node-v22.14.0-${ARCH}"
 
 # Copy application files into app bundle
 cp -r dist "$RESOURCES/"
@@ -70,7 +70,14 @@ chmod +x "$MACOS_BIN/Clinic Records"
 # Copy instructions and debug launcher
 cp scripts/instructions/macos.txt "$PKG_NAME/تعليمات_التشغيل_ماك.txt"
 cp scripts/instructions/macos.txt "$PKG_NAME/INSTRUCTIONS.txt"
-cp start.command "$PKG_NAME/start-debug.command"
+
+cat << 'EOF' > "$PKG_NAME/start-debug.command"
+#!/bin/bash
+cd "$(dirname "$0")"
+echo "Starting Clinic Patient Records with console output..."
+echo ""
+exec "./Clinic Records.app/Contents/MacOS/Clinic Records"
+EOF
 chmod +x "$PKG_NAME/start-debug.command"
 
 touch "$PKG_NAME/data/.gitkeep"

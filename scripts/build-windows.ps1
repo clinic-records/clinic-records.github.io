@@ -5,8 +5,8 @@ New-Item -ItemType Directory -Force -Path "$pkgDir/data"
 New-Item -ItemType Directory -Force -Path "$pkgDir/backups"
 New-Item -ItemType Directory -Force -Path "$pkgDir/storage/patients"
 
-# Download official standalone Node.js binary
-Invoke-WebRequest -Uri "https://nodejs.org/dist/v20.18.0/win-x64/node.exe" -OutFile "$pkgDir/runtime/node.exe"
+# Download official standalone Node.js binary (Node 22 LTS with native ESM require support)
+Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/win-x64/node.exe" -OutFile "$pkgDir/runtime/node.exe"
 
 # Copy application files
 Copy-Item -Recurse -Force "dist" "$pkgDir/dist"
