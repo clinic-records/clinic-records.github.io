@@ -12,7 +12,7 @@ CONTENTS="$APP_DIR/Contents"
 RESOURCES="$CONTENTS/Resources/app"
 MACOS_BIN="$CONTENTS/MacOS"
 
-mkdir -p "$MACOS_BIN" "$PKG_NAME/data" "$PKG_NAME/backups" "$PKG_NAME/storage/patients" "$RESOURCES/runtime/bin"
+mkdir -p "$MACOS_BIN" "$CONTENTS/Resources" "$PKG_NAME/data" "$PKG_NAME/backups" "$PKG_NAME/storage/patients" "$RESOURCES/runtime/bin"
 
 # Download standalone Node.js binary for this architecture (Node 22 LTS)
 curl -fsSL "https://nodejs.org/dist/v22.14.0/node-v22.14.0-${ARCH}.tar.gz" | tar -xz
@@ -27,7 +27,12 @@ cp -r public "$PKG_NAME/"
 cp -r node_modules "$RESOURCES/"
 cp package.json "$RESOURCES/"
 
-# Create Info.plist
+# Copy icon
+if [ -f "assets/AppIcon.icns" ]; then
+    cp assets/AppIcon.icns "$CONTENTS/Resources/AppIcon.icns"
+fi
+
+# Create Info.plist with icon binding
 cat << EOF > "$CONTENTS/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -35,6 +40,8 @@ cat << EOF > "$CONTENTS/Info.plist"
 <dict>
     <key>CFBundleExecutable</key>
     <string>Clinic Records</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>io.github.clinicrecords.app</string>
     <key>CFBundleName</key>
@@ -42,42 +49,34 @@ cat << EOF > "$CONTENTS/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.1</string>
+    <string>1.0.2</string>
     <key>LSMinimumSystemVersion</key>
     <string>${MIN_OS}</string>
 </dict>
 </plist>
 EOF
 
-# Create launch executable
-cat << 'EOF' > "$MACOS_BIN/Clinic Records"
-#!/bin/bash
-APP_DIR="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
-CONTAINER_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-
-if [ "$CONTAINER_DIR" = "/Applications" ] || [ ! -w "$CONTAINER_DIR" ]; then
-    DATA_ROOT="$HOME/Library/Application Support/ClinicRecords"
-    mkdir -p "$DATA_ROOT"
-    cd "$DATA_ROOT"
+# Compile native Swift Cocoa companion launcher
+if [ "$ARCH" = "darwin-arm64" ]; then
+    SWIFT_TARGET="arm64-apple-macos${MIN_OS}"
 else
-    cd "$CONTAINER_DIR"
+    SWIFT_TARGET="x86_64-apple-macos${MIN_OS}"
 fi
 
-mkdir -p data backups storage/patients
-exec "$APP_DIR/runtime/bin/node" "$APP_DIR/dist/server.js"
-EOF
+echo "Compiling native Cocoa companion launcher ($SWIFT_TARGET)..."
+swiftc -O -target "$SWIFT_TARGET" scripts/macos-launcher/main.swift -o "$MACOS_BIN/Clinic Records"
 chmod +x "$MACOS_BIN/Clinic Records"
 
-# Copy instructions and debug launcher
-cp scripts/instructions/macos.txt "$PKG_NAME/تعليمات_التشغيل_ماك.txt"
-cp scripts/instructions/macos.txt "$PKG_NAME/INSTRUCTIONS.txt"
+# Copy single clean Arabic instructions
+cp scripts/instructions/macos.txt "$PKG_NAME/تعليمات_التشغيل.txt"
 
+# Console debug launcher for advanced troubleshooting
 cat << 'EOF' > "$PKG_NAME/start-debug.command"
 #!/bin/bash
 cd "$(dirname "$0")"
 echo "Starting Clinic Patient Records with console output..."
 echo ""
-exec "./Clinic Records.app/Contents/MacOS/Clinic Records"
+exec "./Clinic Records.app/Contents/Resources/app/runtime/bin/node" "./Clinic Records.app/Contents/Resources/app/dist/server.js"
 EOF
 chmod +x "$PKG_NAME/start-debug.command"
 
