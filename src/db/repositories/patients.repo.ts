@@ -9,8 +9,14 @@ export class PatientsRepository {
     const row = this.db.prepare('SELECT MAX(id) as maxId FROM patients').get() as {
       maxId: number | null;
     };
-    const nextId = (row?.maxId || 0) + 1;
-    return `CL-${String(nextId).padStart(6, '0')}`;
+    let nextId = (row?.maxId || 0) + 1;
+    let candidate = `CL-${String(nextId).padStart(6, '0')}`;
+    const checkStmt = this.db.prepare('SELECT 1 FROM patients WHERE file_number = ? LIMIT 1');
+    while (checkStmt.get(candidate)) {
+      nextId++;
+      candidate = `CL-${String(nextId).padStart(6, '0')}`;
+    }
+    return candidate;
   }
 
   public createPatient(data: {
@@ -28,28 +34,32 @@ export class PatientsRepository {
     const fileNumber = data.file_number?.trim() || this.generateNextFileNumber();
     const normalizedName = normalizeArabic(data.full_name);
 
-    const insertStmt = this.db.prepare(`
-      INSERT INTO patients (file_number, full_name, normalized_name, phone, national_id, gender, birth_date, age, diagnosis, notes, photo_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const createTransaction = this.db.transaction(() => {
+      const insertStmt = this.db.prepare(`
+        INSERT INTO patients (file_number, full_name, normalized_name, phone, national_id, gender, birth_date, age, diagnosis, notes, photo_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
 
-    const result = insertStmt.run(
-      fileNumber,
-      data.full_name.trim(),
-      normalizedName,
-      data.phone?.trim() || null,
-      data.national_id?.trim() || null,
-      data.gender === 'female' ? 'female' : 'male',
-      data.birth_date || null,
-      data.age || null,
-      data.diagnosis?.trim() || null,
-      data.notes?.trim() || null,
-      data.photo_url || null
-    );
+      const result = insertStmt.run(
+        fileNumber,
+        data.full_name.trim(),
+        normalizedName,
+        data.phone?.trim() || null,
+        data.national_id?.trim() || null,
+        data.gender === 'female' ? 'female' : 'male',
+        data.birth_date || null,
+        data.age || null,
+        data.diagnosis?.trim() || null,
+        data.notes?.trim() || null,
+        data.photo_url || null
+      );
 
-    const patientId = Number(result.lastInsertRowid);
-    this.db.prepare('INSERT INTO patient_documents (patient_id) VALUES (?)').run(patientId);
+      const patientId = Number(result.lastInsertRowid);
+      this.db.prepare('INSERT INTO patient_documents (patient_id) VALUES (?)').run(patientId);
+      return patientId;
+    });
 
+    const patientId = createTransaction();
     return this.getPatientById(patientId)!;
   }
 

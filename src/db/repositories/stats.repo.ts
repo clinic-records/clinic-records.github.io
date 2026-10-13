@@ -5,29 +5,23 @@ export class StatsRepository {
   constructor(private db: Database) {}
 
   public getStats(): PatientStats {
-    const patientsCount = (
-      this.db.prepare('SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NULL').get() as { c: number }
-    ).c;
-    const todayPatientsCount = (
-      this.db
-        .prepare(
-          "SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NULL AND date(created_at, 'localtime') = date('now', 'localtime')"
-        )
-        .get() as { c: number }
-    ).c;
-    const maleCount = (
-      this.db
-        .prepare("SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NULL AND gender = 'male'")
-        .get() as { c: number }
-    ).c;
-    const femaleCount = (
-      this.db
-        .prepare("SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NULL AND gender = 'female'")
-        .get() as { c: number }
-    ).c;
-    const recycleCount = (
-      this.db.prepare('SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NOT NULL').get() as { c: number }
-    ).c;
+    const countsRow = this.db
+      .prepare(
+        `SELECT 
+          COUNT(CASE WHEN deleted_at IS NULL THEN 1 END) as totalPatients,
+          COUNT(CASE WHEN deleted_at IS NULL AND created_at >= datetime('now', 'start of day', 'localtime') THEN 1 END) as todayPatients,
+          COUNT(CASE WHEN deleted_at IS NULL AND gender = 'male' THEN 1 END) as malePatients,
+          COUNT(CASE WHEN deleted_at IS NULL AND gender = 'female' THEN 1 END) as femalePatients,
+          COUNT(CASE WHEN deleted_at IS NOT NULL THEN 1 END) as recycleCount
+        FROM patients`
+      )
+      .get() as {
+        totalPatients: number;
+        todayPatients: number;
+        malePatients: number;
+        femalePatients: number;
+        recycleCount: number;
+      };
     const videosRow = this.db
       .prepare(
         `SELECT COUNT(*) as c, COALESCE(SUM(v.file_size), 0) as totalBytes 
@@ -51,14 +45,14 @@ export class StatsRepository {
       .get() as { totalDocs: number; totalDocsBytes: number };
 
     return {
-      totalPatients: patientsCount,
-      todayPatients: todayPatientsCount,
-      malePatients: maleCount,
-      femalePatients: femaleCount,
+      totalPatients: countsRow.totalPatients,
+      todayPatients: countsRow.todayPatients,
+      malePatients: countsRow.malePatients,
+      femalePatients: countsRow.femalePatients,
       totalVideos: videosRow.c,
       totalDocuments: docsRow.totalDocs,
       totalStorageBytes: videosRow.totalBytes + docsRow.totalDocsBytes,
-      recycleBinCount: recycleCount,
+      recycleBinCount: countsRow.recycleCount,
     };
   }
 }

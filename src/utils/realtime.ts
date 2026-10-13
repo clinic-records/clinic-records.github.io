@@ -9,6 +9,31 @@ export interface ClientConnection {
 
 class RealtimeManager {
   private clients: Map<string, ClientConnection> = new Map();
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // 25-second keep-alive heartbeat for Wi-Fi / mobile connections
+    this.heartbeatTimer = setInterval(() => {
+      this.sendHeartbeat();
+    }, 25000);
+    this.heartbeatTimer.unref();
+  }
+
+  private sendHeartbeat(): void {
+    if (this.clients.size === 0) return;
+    const pingPayload = ': ping\n\n';
+    for (const [clientId, client] of this.clients.entries()) {
+      try {
+        if (client.reply.raw.writableEnded || client.reply.raw.destroyed) {
+          this.clients.delete(clientId);
+        } else {
+          client.reply.raw.write(pingPayload);
+        }
+      } catch {
+        this.clients.delete(clientId);
+      }
+    }
+  }
 
   public addClient(id: string, ip: string, reply: FastifyReply): void {
     this.clients.set(id, {

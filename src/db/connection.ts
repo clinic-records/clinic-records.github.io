@@ -60,6 +60,13 @@ export function initDatabaseSchema(db: Database): void {
     db.exec(`ALTER TABLE patients ADD COLUMN photo_url TEXT DEFAULT NULL;`);
   }
 
+  // High-performance partial indexes for massive datasets
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_patients_active_created ON patients(created_at DESC) WHERE deleted_at IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_patients_active_file ON patients(file_number) WHERE deleted_at IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_patients_active_name ON patients(full_name COLLATE NOCASE) WHERE deleted_at IS NULL;
+  `);
+
   db.exec(`
     -- Four fixed patient documents table
     CREATE TABLE IF NOT EXISTS patient_documents (

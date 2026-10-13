@@ -349,9 +349,11 @@ export function registerPatientsRoutes(
     }
 
     const validIds = ids.map(Number).filter((n) => !isNaN(n));
-    for (const id of validIds) {
-      db.deletePatient(id);
-      deletePatientDirectory(config.storagePath, id);
+    if (validIds.length > 0) {
+      db.batchPermanentDelete(validIds);
+      for (const id of validIds) {
+        deletePatientDirectory(config.storagePath, id);
+      }
     }
 
     realtimeManager.broadcastPatientsListChanged();
@@ -361,9 +363,11 @@ export function registerPatientsRoutes(
   // 15. Empty the entire recycle bin
   app.post('/api/recycle-bin/empty', async (_req, reply) => {
     const allIds = db.getAllDeletedPatientIds();
-    for (const id of allIds) {
-      db.deletePatient(id);
-      deletePatientDirectory(config.storagePath, id);
+    if (allIds.length > 0) {
+      db.batchPermanentDelete(allIds);
+      for (const id of allIds) {
+        deletePatientDirectory(config.storagePath, id);
+      }
     }
 
     realtimeManager.broadcastPatientsListChanged();
