@@ -1,24 +1,20 @@
 $pkgDir = "ClinicRecords-Windows-x64"
+$appResDir = "$pkgDir/resources"
+
 New-Item -ItemType Directory -Force -Path "$pkgDir"
-New-Item -ItemType Directory -Force -Path "$pkgDir/runtime"
+New-Item -ItemType Directory -Force -Path "$appResDir/runtime"
 New-Item -ItemType Directory -Force -Path "$pkgDir/data"
 New-Item -ItemType Directory -Force -Path "$pkgDir/backups"
 New-Item -ItemType Directory -Force -Path "$pkgDir/storage/patients"
 
 # Download official standalone Node.js binary (Node 22 LTS with native ESM require support)
-Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/win-x64/node.exe" -OutFile "$pkgDir/runtime/node.exe"
+Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/win-x64/node.exe" -OutFile "$appResDir/runtime/node.exe"
 
-# Copy application files
-Copy-Item -Recurse -Force "dist" "$pkgDir/dist"
-Copy-Item -Recurse -Force "public" "$pkgDir/public"
-Copy-Item -Recurse -Force "node_modules" "$pkgDir/node_modules"
-Copy-Item -Force "package.json" "$pkgDir/"
-Copy-Item -Force "README.md" "$pkgDir/"
-
-# Copy icon
-if (Test-Path "assets/AppIcon.ico") {
-    Copy-Item -Force "assets/AppIcon.ico" "$pkgDir/AppIcon.ico"
-}
+# Copy internal application files into resources
+Copy-Item -Recurse -Force "dist" "$appResDir/dist"
+Copy-Item -Recurse -Force "public" "$appResDir/public"
+Copy-Item -Recurse -Force "node_modules" "$appResDir/node_modules"
+Copy-Item -Force "package.json" "$appResDir/"
 
 # Copy single clean Arabic instructions
 Copy-Item -Force "scripts/instructions/windows.txt" "$pkgDir/تعليمات_التشغيل.txt"
@@ -31,14 +27,15 @@ echo =============================================================
 echo   Starting Clinic Patient Records Console Debugger
 echo =============================================================
 echo.
-runtime\node.exe dist\server.js
+resources\runtime\node.exe resources\dist\server.js
 pause
 "@
 Set-Content -Path "$pkgDir/start-debug.bat" -Value $debugBat -Encoding utf8
 
 # Compile native Windows GUI Companion Launcher "Clinic Records.exe"
+# Embed icon directly into the PE binary resources from assets/AppIcon.ico
 $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-$iconParam = if (Test-Path "$pkgDir/AppIcon.ico") { "/win32icon:$pkgDir\AppIcon.ico" } else { "" }
+$iconParam = if (Test-Path "assets/AppIcon.ico") { "/win32icon:assets\AppIcon.ico" } else { "" }
 
 $cscArgs = @(
     "/nologo",

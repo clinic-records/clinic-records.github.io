@@ -23,7 +23,6 @@ rm -rf "node-v22.14.0-${ARCH}"
 # Copy application files into app bundle
 cp -r dist "$RESOURCES/"
 cp -r public "$RESOURCES/"
-cp -r public "$PKG_NAME/"
 cp -r node_modules "$RESOURCES/"
 cp package.json "$RESOURCES/"
 
@@ -49,7 +48,7 @@ cat << EOF > "$CONTENTS/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.2</string>
+    <string>1.0.3</string>
     <key>LSMinimumSystemVersion</key>
     <string>${MIN_OS}</string>
 </dict>

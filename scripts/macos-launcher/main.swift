@@ -164,12 +164,12 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         statusDot = NSTextField(labelWithString: "●")
         statusDot.font = NSFont.systemFont(ofSize: 18)
         statusDot.textColor = .systemGreen
-        statusDot.frame = NSRect(x: 80, y: 442, width: 24, height: 22)
+        statusDot.frame = NSRect(x: 145, y: 442, width: 20, height: 22)
         contentView.addSubview(statusDot)
         
-        statusLabel = NSTextField(labelWithString: "الخادم قيد التشغيل ويعمل بنجاح")
-        statusLabel.font = NSFont.systemFont(ofSize: 14)
-        statusLabel.frame = NSRect(x: 105, y: 443, width: 250, height: 22)
+        statusLabel = NSTextField(labelWithString: "الخادم قيد الإقلاع...")
+        statusLabel.font = NSFont.boldSystemFont(ofSize: 14)
+        statusLabel.frame = NSRect(x: 170, y: 443, width: 160, height: 22)
         contentView.addSubview(statusLabel)
         
         // 3. Network URL Section
@@ -195,20 +195,29 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         contentView.addSubview(openBrowserButton)
         
         // 4. QR Code Box
-        let qrBox = NSBox(frame: NSRect(x: 110, y: 155, width: 220, height: 205))
+        let qrBox = NSBox(frame: NSRect(x: 100, y: 155, width: 240, height: 215))
         qrBox.title = "رمز الدخول السريع (QR)"
         qrBox.titlePosition = .atTop
         
-        qrImageView = NSImageView(frame: NSRect(x: 10, y: 10, width: 200, height: 175))
+        qrImageView = NSImageView()
         qrImageView.imageScaling = .scaleProportionallyUpOrDown
-        qrBox.contentView?.addSubview(qrImageView)
+        qrImageView.translatesAutoresizingMaskIntoConstraints = false
+        if let container = qrBox.contentView {
+            container.addSubview(qrImageView)
+            NSLayoutConstraint.activate([
+                qrImageView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                qrImageView.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -6),
+                qrImageView.widthAnchor.constraint(equalToConstant: 160),
+                qrImageView.heightAnchor.constraint(equalToConstant: 160)
+            ])
+        }
         contentView.addSubview(qrBox)
         
         let qrHint = NSTextField(labelWithString: "امسح الرمز من الهاتف أو التابلت للفتح المباشر")
         qrHint.font = NSFont.systemFont(ofSize: 11)
         qrHint.textColor = .secondaryLabelColor
         qrHint.alignment = .center
-        qrHint.frame = NSRect(x: 20, y: 130, width: 400, height: 18)
+        qrHint.frame = NSRect(x: 20, y: 125, width: 400, height: 18)
         contentView.addSubview(qrHint)
         
         // 5. Action Buttons
@@ -236,7 +245,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
     func updateUI() {
         let isRunning = ServerManager.shared.isRunning
         statusDot.textColor = isRunning ? .systemGreen : .systemRed
-        statusLabel.stringValue = isRunning ? "الخادم يعمل بنجاح (Port: \(ServerManager.shared.currentPort))" : "الخادم متوقف حالياً"
+        statusLabel.stringValue = isRunning ? "الخادم يعمل بنجاح" : "الخادم متوقف حالياً"
         toggleButton.title = isRunning ? "إيقاف السيرفر" : "تشغيل السيرفر"
         
         if !ServerManager.shared.lanUrl.isEmpty {
@@ -288,7 +297,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
                     return
                 }
                 
-                let currentVer = "v1.0.2"
+                let currentVer = "v1.0.3"
                 if latestTag.compare(currentVer, options: .numeric) == .orderedDescending {
                     let alert = NSAlert()
                     alert.messageText = "يوجد تحديث جديد متاحة (\(latestTag))!"
@@ -327,14 +336,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId)
         
         for app in runningApps where app.processIdentifier != currentPid {
-            app.activate(options: [.activateIgnoringOtherApps])
-            // Already running: bring to front, open browser, and exit this launcher
-            if let url = URL(string: "http://127.0.0.1:3000") {
-                NSWorkspace.shared.open(url)
-            }
-            NSApp.terminate(nil)
-            return
+            // Signal running instance to bring its window to front
+            DistributedNotificationCenter.default().postNotificationName(
+                NSNotification.Name("io.github.clinicrecords.showDashboard"),
+                object: nil,
+                userInfo: nil,
+                deliverImmediately: true
+            )
+            app.activate()
+            // Do NOT open browser! Exit immediately
+            exit(0)
         }
+        
+        // Listen for requests to show dashboard from subsequent launches
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(showDashboard),
+            name: NSNotification.Name("io.github.clinicrecords.showDashboard"),
+            object: nil
+        )
         
         dashboardController = DashboardWindowController()
         dashboardController?.showWindow(nil)
@@ -359,6 +379,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func showDashboard() {
+        dashboardController?.window?.deminiaturize(nil)
         dashboardController?.showWindow(nil)
         dashboardController?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -381,9 +402,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            showDashboard()
-        }
+        showDashboard()
         return true
     }
     

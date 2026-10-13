@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,20 +13,20 @@ namespace ClinicRecordsLauncher
 {
     static class Program
     {
-        private static Mutex singleInstanceMutex;
+        private static EventWaitHandle showWindowHandle;
 
         [STAThread]
         static void Main()
         {
             bool createdNew;
-            singleInstanceMutex = new Mutex(true, "ClinicPatientRecordsSingleInstanceMutex", out createdNew);
+            showWindowHandle = new EventWaitHandle(false, EventResetMode.AutoReset, "ClinicPatientRecordsShowWindowEvent", out createdNew);
 
             if (!createdNew)
             {
-                // App is already running: open browser and exit
+                // App is already running: wake existing companion dashboard ONLY, DO NOT reopen browser!
                 try
                 {
-                    Process.Start(new ProcessStartInfo("http://127.0.0.1:3000") { UseShellExecute = true });
+                    showWindowHandle.Set();
                 }
                 catch { }
                 return;
@@ -33,12 +34,36 @@ namespace ClinicRecordsLauncher
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new DashboardForm());
+            DashboardForm mainForm = new DashboardForm();
+
+            // Background listener for subsequent launcher invocations
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    showWindowHandle.WaitOne();
+                    try
+                    {
+                        if (mainForm != null && !mainForm.IsDisposed)
+                        {
+                            mainForm.Invoke((MethodInvoker)delegate {
+                                mainForm.ShowDashboard();
+                            });
+                        }
+                    }
+                    catch { }
+                }
+            });
+
+            Application.Run(mainForm);
         }
     }
 
     public class DashboardForm : Form
     {
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
         private Process serverProcess;
         private string appDir;
         private string lanUrl = "http://127.0.0.1:3000";
@@ -47,6 +72,7 @@ namespace ClinicRecordsLauncher
 
         private NotifyIcon trayIcon;
         private ContextMenuStrip trayMenu;
+        private Label lblStatusDot;
         private Label lblStatus;
         private TextBox txtUrl;
         private Button btnCopy;
@@ -72,10 +98,18 @@ namespace ClinicRecordsLauncher
             this.BackColor = Color.FromArgb(248, 250, 252);
             this.Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
 
-            string icoPath = Path.Combine(appDir, "AppIcon.ico");
-            if (File.Exists(icoPath))
+            // Extract embedded icon from executable itself (no loose .ico needed)
+            try
             {
-                try { this.Icon = new Icon(icoPath); } catch { }
+                this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            }
+            catch
+            {
+                string icoPath = Path.Combine(appDir, "resources", "AppIcon.ico");
+                if (File.Exists(icoPath))
+                {
+                    try { this.Icon = new Icon(icoPath); } catch { }
+                }
             }
 
             // 1. Header Label
@@ -87,13 +121,21 @@ namespace ClinicRecordsLauncher
             lblHeader.Bounds = new Rectangle(20, 15, 400, 30);
             this.Controls.Add(lblHeader);
 
-            // 2. Status Label
+            // 2. Status Box (Dot + Text aligned)
+            lblStatusDot = new Label();
+            lblStatusDot.Text = "●";
+            lblStatusDot.Font = new Font("Segoe UI", 14f, FontStyle.Bold);
+            lblStatusDot.ForeColor = Color.FromArgb(16, 185, 129);
+            lblStatusDot.TextAlign = ContentAlignment.MiddleRight;
+            lblStatusDot.Bounds = new Rectangle(120, 48, 25, 26);
+            this.Controls.Add(lblStatusDot);
+
             lblStatus = new Label();
-            lblStatus.Text = "● الخادم قيد الإقلاع والتشغيل...";
-            lblStatus.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
-            lblStatus.ForeColor = Color.FromArgb(13, 148, 136);
-            lblStatus.TextAlign = ContentAlignment.MiddleCenter;
-            lblStatus.Bounds = new Rectangle(20, 50, 400, 25);
+            lblStatus.Text = "الخادم قيد الإقلاع...";
+            lblStatus.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            lblStatus.ForeColor = Color.FromArgb(15, 23, 42);
+            lblStatus.TextAlign = ContentAlignment.MiddleLeft;
+            lblStatus.Bounds = new Rectangle(150, 48, 200, 26);
             this.Controls.Add(lblStatus);
 
             // 3. Network URL Section
@@ -132,18 +174,18 @@ namespace ClinicRecordsLauncher
 
             // 4. QR Code Box
             GroupBox gbQr = new GroupBox();
-            gbQr.Text = " رمز الدخول السريع (QR Code) ";
+            gbQr.Text = " رمز الدخول السريع (QR) ";
             gbQr.Bounds = new Rectangle(110, 155, 220, 220);
             gbQr.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
 
             pbQr = new PictureBox();
-            pbQr.Bounds = new Rectangle(15, 25, 190, 185);
+            pbQr.Bounds = new Rectangle(20, 25, 180, 180);
             pbQr.SizeMode = PictureBoxSizeMode.Zoom;
             gbQr.Controls.Add(pbQr);
             this.Controls.Add(gbQr);
 
             Label lblQrHint = new Label();
-            lblQrHint.Text = "امسح الرمز بكاميرا الهاتف أو التابلت للدخول فوراً";
+            lblQrHint.Text = "امسح الرمز من الهاتف أو التابلت للفتح المباشر";
             lblQrHint.Font = new Font("Segoe UI", 8.5f, FontStyle.Regular);
             lblQrHint.ForeColor = Color.FromArgb(100, 116, 139);
             lblQrHint.TextAlign = ContentAlignment.MiddleCenter;
@@ -195,10 +237,12 @@ namespace ClinicRecordsLauncher
 
         private void StartServer()
         {
-            string nodePath = Path.Combine(appDir, "runtime", "node.exe");
-            string scriptPath = Path.Combine(appDir, "dist", "server.js");
-
+            string nodePath = Path.Combine(appDir, "resources", "runtime", "node.exe");
+            if (!File.Exists(nodePath)) nodePath = Path.Combine(appDir, "runtime", "node.exe");
             if (!File.Exists(nodePath)) nodePath = "node";
+
+            string scriptPath = Path.Combine(appDir, "resources", "dist", "server.js");
+            if (!File.Exists(scriptPath)) scriptPath = Path.Combine(appDir, "dist", "server.js");
 
             try
             {
@@ -211,16 +255,16 @@ namespace ClinicRecordsLauncher
 
                 serverProcess = Process.Start(psi);
                 isServerRunning = true;
-                lblStatus.Text = "● الخادم يعمل بنجاح";
-                lblStatus.ForeColor = Color.FromArgb(13, 148, 136);
+                lblStatusDot.ForeColor = Color.FromArgb(16, 185, 129);
+                lblStatus.Text = "الخادم يعمل بنجاح";
                 btnToggleServer.Text = "إيقاف السيرفر";
 
                 Task.Run(async () => await PollServerNetwork());
             }
             catch (Exception ex)
             {
-                lblStatus.Text = "● فشل تشغيل الخادم";
-                lblStatus.ForeColor = Color.Red;
+                lblStatusDot.ForeColor = Color.FromArgb(239, 68, 68);
+                lblStatus.Text = "فشل تشغيل الخادم";
                 MessageBox.Show("تعذر تشغيل خادم العيادة: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -238,8 +282,8 @@ namespace ClinicRecordsLauncher
             }
             serverProcess = null;
             isServerRunning = false;
-            lblStatus.Text = "● الخادم متوقف حالياً";
-            lblStatus.ForeColor = Color.Red;
+            lblStatusDot.ForeColor = Color.FromArgb(239, 68, 68);
+            lblStatus.Text = "الخادم متوقف حالياً";
             btnToggleServer.Text = "تشغيل السيرفر";
         }
 
@@ -272,8 +316,8 @@ namespace ClinicRecordsLauncher
                             lanUrl = urlMatch.Groups[1].Value;
                             this.Invoke((MethodInvoker)delegate {
                                 txtUrl.Text = lanUrl;
-                                lblStatus.Text = "● الخادم يعمل بنجاح";
-                                lblStatus.ForeColor = Color.FromArgb(13, 148, 136);
+                                lblStatusDot.ForeColor = Color.FromArgb(16, 185, 129);
+                                lblStatus.Text = "الخادم يعمل بنجاح";
                             });
 
                             if (qrMatch.Success)
@@ -288,7 +332,7 @@ namespace ClinicRecordsLauncher
                                 }
                             }
 
-                            // Open browser automatically on first startup
+                            // Open browser automatically on server startup
                             if (i == 0 || !string.IsNullOrEmpty(lanUrl))
                             {
                                 try { Process.Start(new ProcessStartInfo(lanUrl) { UseShellExecute = true }); } catch { }
@@ -317,7 +361,7 @@ namespace ClinicRecordsLauncher
                     var tagMatch = Regex.Match(json, "\"tag_name\"\\s*:\\s*\"([^\"]+)\"");
                     var htmlMatch = Regex.Match(json, "\"html_url\"\\s*:\\s*\"([^\"]+)\"");
 
-                    string currentVersion = "v1.0.2";
+                    string currentVersion = "v1.0.3";
                     if (tagMatch.Success)
                     {
                         string latest = tagMatch.Groups[1].Value;
@@ -352,12 +396,16 @@ namespace ClinicRecordsLauncher
             }
         }
 
-        private void ShowDashboard()
+        public void ShowDashboard()
         {
             this.Show();
-            this.WindowState = FormWindowState.Normal;
+            if (this.WindowState == FormWindowState.Minimized)
+            {
+                this.WindowState = FormWindowState.Normal;
+            }
             this.BringToFront();
             this.Activate();
+            try { SetForegroundWindow(this.Handle); } catch { }
         }
 
         private void DashboardForm_FormClosing(object sender, FormClosingEventArgs e)
