@@ -100,6 +100,7 @@ namespace ClinicRecordsLauncher
         
         private Button btnToggleServer;
         private Button btnRestartServer;
+        private Button btnQuickBackup;
         private Button btnOpenBackups;
         private Button btnCreateShortcut;
         private Button btnCheckUpdate;
@@ -270,25 +271,32 @@ namespace ClinicRecordsLauncher
             btnRestartServer.Click += async (s, e) => await RestartServer();
             this.Controls.Add(btnRestartServer);
 
-            // Row 2: Backups Folder & Desktop Shortcut
+            // Row 2: Quick Backup Now & Backups Folder
+            btnQuickBackup = new Button();
+            btnQuickBackup.Text = "💾 أخذ نسخة احتياطية الآن";
+            btnQuickBackup.Bounds = new Rectangle(30, 484, 195, 36);
+            btnQuickBackup.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+            btnQuickBackup.Click += async (s, e) => await QuickBackupNow();
+            this.Controls.Add(btnQuickBackup);
+
             btnOpenBackups = new Button();
             btnOpenBackups.Text = "📁 مجلد النسخ الاحتياطية";
-            btnOpenBackups.Bounds = new Rectangle(30, 484, 195, 36);
+            btnOpenBackups.Bounds = new Rectangle(235, 484, 195, 36);
             btnOpenBackups.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             btnOpenBackups.Click += (s, e) => OpenBackupsFolder();
             this.Controls.Add(btnOpenBackups);
 
+            // Row 3: Desktop Shortcut & Update Check
             btnCreateShortcut = new Button();
             btnCreateShortcut.Text = "🖥️ اختصار سطح المكتب";
-            btnCreateShortcut.Bounds = new Rectangle(235, 484, 195, 36);
+            btnCreateShortcut.Bounds = new Rectangle(30, 528, 195, 34);
             btnCreateShortcut.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             btnCreateShortcut.Click += (s, e) => CreateDesktopShortcut(true);
             this.Controls.Add(btnCreateShortcut);
 
-            // Row 3: Update Check
             btnCheckUpdate = new Button();
-            btnCheckUpdate.Text = "فحص التحديثات";
-            btnCheckUpdate.Bounds = new Rectangle(140, 528, 185, 34);
+            btnCheckUpdate.Text = "🔄 فحص التحديثات";
+            btnCheckUpdate.Bounds = new Rectangle(235, 528, 195, 34);
             btnCheckUpdate.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             btnCheckUpdate.Click += async (s, e) => await CheckForUpdates();
             this.Controls.Add(btnCheckUpdate);
@@ -349,6 +357,7 @@ namespace ClinicRecordsLauncher
                 lblStatus.Text = "الخادم يعمل بنجاح";
                 btnToggleServer.Text = "إيقاف السيرفر";
                 btnRestartServer.Enabled = true;
+                btnQuickBackup.Enabled = true;
 
                 Task.Run(async () => await PollServerNetwork());
             }
@@ -377,6 +386,7 @@ namespace ClinicRecordsLauncher
             lblStatus.Text = "الخادم متوقف حالياً";
             btnToggleServer.Text = "تشغيل السيرفر";
             btnRestartServer.Enabled = false;
+            btnQuickBackup.Enabled = false;
         }
 
         private void ToggleServer()
@@ -390,6 +400,45 @@ namespace ClinicRecordsLauncher
             StopServer();
             await Task.Delay(600);
             StartServer();
+        }
+
+        private async Task QuickBackupNow()
+        {
+            if (!isServerRunning)
+            {
+                MessageBox.Show("يجب تشغيل السيرفر أولاً لتتمكن من أخذ نسخة احتياطية.", "الخادم متوقف", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                btnQuickBackup.Enabled = false;
+                btnQuickBackup.Text = "جارٍ النسخ...";
+
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(30);
+                    var content = new StringContent("{}", Encoding.UTF8, "application/json");
+                    var response = await client.PostAsync("http://127.0.0.1:" + currentPort + "/api/backup", content);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        MessageBox.Show("تم إنشاء نسخة احتياطية مؤمنة بنجاح وحفظها في مجلد النسخ الاحتياطية! 💾", "النسخ الاحتياطي", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("تعذر إنشاء النسخة الاحتياطية. رمز الخطأ: " + (int)response.StatusCode, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("تعذر الاتصال بالخادم لأخذ النسخة الاحتياطية:\n" + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnQuickBackup.Enabled = isServerRunning;
+                btnQuickBackup.Text = "💾 أخذ نسخة احتياطية الآن";
+            }
         }
 
         private void OpenBackupsFolder()

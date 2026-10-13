@@ -200,6 +200,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
     
     private var toggleButton: NSButton!
     private var restartButton: NSButton!
+    private var quickBackupButton: NSButton!
     private var backupsButton: NSButton!
     private var shortcutButton: NSButton!
     private var updateButton: NSButton!
@@ -332,21 +333,26 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         restartButton.frame = NSRect(x: 235, y: 125, width: 195, height: 34)
         contentView.addSubview(restartButton)
         
-        // Row 2: Backups Folder & Desktop Shortcut
+        // Row 2: Quick Backup Now & Backups Folder
+        quickBackupButton = NSButton(title: "💾 أخذ نسخة احتياطية الآن", target: self, action: #selector(quickBackupClicked))
+        quickBackupButton.bezelStyle = .rounded
+        quickBackupButton.frame = NSRect(x: 30, y: 85, width: 195, height: 34)
+        contentView.addSubview(quickBackupButton)
+
         backupsButton = NSButton(title: "📁 مجلد النسخ الاحتياطية", target: self, action: #selector(openBackupsClicked))
         backupsButton.bezelStyle = .rounded
-        backupsButton.frame = NSRect(x: 30, y: 85, width: 195, height: 34)
+        backupsButton.frame = NSRect(x: 235, y: 85, width: 195, height: 34)
         contentView.addSubview(backupsButton)
         
+        // Row 3: Desktop Shortcut & Update Checker
         shortcutButton = NSButton(title: "🖥️ اختصار سطح المكتب", target: self, action: #selector(createShortcutClicked))
         shortcutButton.bezelStyle = .rounded
-        shortcutButton.frame = NSRect(x: 235, y: 85, width: 195, height: 34)
+        shortcutButton.frame = NSRect(x: 30, y: 48, width: 195, height: 32)
         contentView.addSubview(shortcutButton)
-        
-        // Row 3: Update Checker
-        updateButton = NSButton(title: "فحص التحديثات", target: self, action: #selector(checkUpdatesClicked))
+
+        updateButton = NSButton(title: "🔄 فحص التحديثات", target: self, action: #selector(checkUpdatesClicked))
         updateButton.bezelStyle = .rounded
-        updateButton.frame = NSRect(x: 130, y: 48, width: 200, height: 32)
+        updateButton.frame = NSRect(x: 235, y: 48, width: 195, height: 32)
         contentView.addSubview(updateButton)
         
         // 7. Footer Hint
@@ -366,6 +372,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         statusLabel.stringValue = isRunning ? "الخادم يعمل بنجاح" : "الخادم متوقف حالياً"
         toggleButton.title = isRunning ? "إيقاف السيرفر" : "تشغيل السيرفر"
         restartButton.isEnabled = isRunning
+        quickBackupButton.isEnabled = isRunning
         
         if !ServerManager.shared.lanUrl.isEmpty {
             urlField.stringValue = ServerManager.shared.lanUrl
@@ -403,6 +410,50 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         }
     }
     
+    @objc private func quickBackupClicked() {
+        guard ServerManager.shared.isRunning else {
+            let alert = NSAlert()
+            alert.messageText = "الخادم متوقف"
+            alert.informativeText = "يجب تشغيل السيرفر أولاً لتتمكن من أخذ نسخة احتياطية."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+        
+        let port = ServerManager.shared.currentPort
+        guard let url = URL(string: "http://127.0.0.1:\(port)/api/backup") else { return }
+        
+        quickBackupButton.isEnabled = false
+        quickBackupButton.title = "جارٍ النسخ..."
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = "{}".data(using: .utf8)
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                self?.quickBackupButton.isEnabled = true
+                self?.quickBackupButton.title = "💾 أخذ نسخة احتياطية الآن"
+                
+                if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                    let alert = NSAlert()
+                    alert.messageText = "تم إنشاء النسخة الاحتياطية بنجاح! 💾"
+                    alert.informativeText = "تم حفظ نسخة احتياطية مؤمنة لقاعدة البيانات في مجلد النسخ الاحتياطية."
+                    alert.alertStyle = .informational
+                    alert.runModal()
+                } else {
+                    let alert = NSAlert()
+                    alert.messageText = "تعذر أخذ النسخة الاحتياطية"
+                    alert.informativeText = error?.localizedDescription ?? "حدث خطأ أثناء الاتصال بالخادم المحلي."
+                    alert.alertStyle = .warning
+                    alert.runModal()
+                }
+            }
+        }.resume()
+    }
+
     @objc private func openBackupsClicked() {
         let backupDir = "\(ServerManager.shared.workingDir)/backups"
         let url = URL(fileURLWithPath: backupDir)

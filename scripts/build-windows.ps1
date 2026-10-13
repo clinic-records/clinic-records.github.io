@@ -13,7 +13,14 @@ Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/win-x64/node.exe" -OutF
 # Copy internal application files into resources
 Copy-Item -Recurse -Force "dist" "$appResDir/dist"
 Copy-Item -Recurse -Force "public" "$appResDir/public"
-Copy-Item -Recurse -Force "node_modules" "$appResDir/node_modules"
+New-Item -ItemType Directory -Force -Path "$appResDir/node_modules"
+Copy-Item -Recurse -Force "node_modules/better-sqlite3" "$appResDir/node_modules/better-sqlite3"
+if (Test-Path "node_modules/node-addon-api") {
+    Copy-Item -Recurse -Force "node_modules/node-addon-api" "$appResDir/node_modules/node-addon-api"
+}
+# Strip non-runtime test, benchmark, and doc files
+Get-ChildItem -Path "$appResDir/node_modules" -Recurse -Directory | Where-Object { $_.Name -in @("test", "tests", "benchmark", "examples", ".github") } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem -Path "$appResDir/node_modules" -Recurse -File | Where-Object { $_.Extension -in @(".md", ".txt") -and $_.Name -ne "LICENSE" } | Remove-Item -Force -ErrorAction SilentlyContinue
 Copy-Item -Force "package.json" "$appResDir/"
 
 # Copy single clean Arabic instructions
@@ -61,6 +68,14 @@ New-Item -ItemType File -Force -Path "$pkgDir/data/.gitkeep"
 New-Item -ItemType File -Force -Path "$pkgDir/backups/.gitkeep"
 New-Item -ItemType File -Force -Path "$pkgDir/storage/patients/.gitkeep"
 
+# Read version from package.json for versioned archive name
+$pkgJson = Get-Content "package.json" -Raw | ConvertFrom-Json
+$version = if ($pkgJson.version) { "v" + $pkgJson.version } else { "" }
+$zipName = if ($version) { "ClinicRecords-$version-Windows-x64.zip" } else { "ClinicRecords-Windows-x64.zip" }
+
 # Compress to zip
-Compress-Archive -Path "$pkgDir" -DestinationPath "ClinicRecords-Windows-x64.zip" -Force
-Write-Host "Windows package created successfully: ClinicRecords-Windows-x64.zip"
+Compress-Archive -Path "$pkgDir" -DestinationPath "$zipName" -Force
+if ($zipName -ne "ClinicRecords-Windows-x64.zip") {
+    Copy-Item -Force "$zipName" "ClinicRecords-Windows-x64.zip"
+}
+Write-Host "Windows package created successfully: $zipName (and ClinicRecords-Windows-x64.zip)"

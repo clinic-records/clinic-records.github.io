@@ -23,7 +23,14 @@ rm -rf "node-v22.14.0-${ARCH}"
 # Copy application files into app bundle
 cp -r dist "$RESOURCES/"
 cp -r public "$RESOURCES/"
-cp -r node_modules "$RESOURCES/"
+mkdir -p "$RESOURCES/node_modules"
+cp -r node_modules/better-sqlite3 "$RESOURCES/node_modules/"
+if [ -d "node_modules/node-addon-api" ]; then
+    cp -r node_modules/node-addon-api "$RESOURCES/node_modules/"
+fi
+# Clean up any non-essential test, benchmark, or doc files
+find "$RESOURCES/node_modules" -type d \( -name "test" -o -name "tests" -o -name "benchmark" -o -name "examples" -o -name ".github" \) -exec rm -rf {} + 2>/dev/null || true
+find "$RESOURCES/node_modules" -type f \( -name "*.md" -o -name "*.txt" -o -name "eslint.config.js" \) ! -name "LICENSE" -delete 2>/dev/null || true
 cp package.json "$RESOURCES/"
 
 # Copy icon
@@ -81,7 +88,17 @@ chmod +x "$PKG_NAME/start-debug.command"
 
 touch "$PKG_NAME/data/.gitkeep"
 touch "$PKG_NAME/backups/.gitkeep"
-touch "$PKG_NAME/storage/patients/.gitkeep"
+VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+if [ -n "$VERSION" ]; then
+    SUFFIX=$(echo "$PKG_NAME" | sed 's/^ClinicRecords-//')
+    ZIP_NAME="ClinicRecords-v${VERSION}-${SUFFIX}.zip"
+else
+    ZIP_NAME="${PKG_NAME}.zip"
+fi
 
-zip -r "${PKG_NAME}.zip" "$PKG_NAME"
-echo "macOS package created: ${PKG_NAME}.zip"
+zip -r "$ZIP_NAME" "$PKG_NAME"
+# Also keep canonical zip for script backwards-compatibility if different
+if [ "$ZIP_NAME" != "${PKG_NAME}.zip" ]; then
+    cp "$ZIP_NAME" "${PKG_NAME}.zip"
+fi
+echo "macOS package created: $ZIP_NAME (and ${PKG_NAME}.zip)"
