@@ -21,7 +21,7 @@ export function registerApiRoutes(
   app: FastifyInstance,
   db: ClinicDatabase,
   config: AppConfig,
-  currentPort: number
+  currentPort: number | (() => number)
 ) {
   // 1. Real-time Server-Sent Events (SSE) connection
   app.get('/api/realtime', (req: FastifyRequest<{
@@ -77,7 +77,8 @@ export function registerApiRoutes(
 
   // 4. Network details and QR code
   app.get('/api/network', async (_req, reply) => {
-    const details = await getNetworkDetails(currentPort);
+    const portNumber = typeof currentPort === 'function' ? currentPort() : currentPort;
+    const details = await getNetworkDetails(portNumber);
     return reply.send(details);
   });
 

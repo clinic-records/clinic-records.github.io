@@ -23,6 +23,7 @@ rm -rf "node-v22.14.0-${ARCH}"
 # Copy application files into app bundle
 cp -r dist "$RESOURCES/"
 cp -r public "$RESOURCES/"
+cp -r public "$PKG_NAME/"
 cp -r node_modules "$RESOURCES/"
 cp package.json "$RESOURCES/"
 

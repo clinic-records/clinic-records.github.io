@@ -9,14 +9,13 @@ import qrcodeTerminal from 'qrcode';
 import { loadConfig } from './config.js';
 import { ClinicDatabase } from './db/database.js';
 import { registerApiRoutes } from './routes/api.js';
-import { findAvailablePort, getNetworkDetails } from './utils/network.js';
+import { getNetworkDetails } from './utils/network.js';
 
 async function bootstrap() {
   const config = loadConfig();
   const db = new ClinicDatabase(config.dbPath);
 
-  // Find next available port if default port is in use
-  const activePort = await findAvailablePort(config.port, config.host);
+  let activePort = config.port;
 
   const app = fastify({
     logger: false,
@@ -36,7 +35,15 @@ async function bootstrap() {
     },
   });
 
-  const publicDir = path.resolve(process.cwd(), 'public');
+  // Resolve public folder: check next to dist first, fallback to cwd
+  const appPublic = path.resolve(import.meta.dirname, '..', 'public');
+  const cwdPublic = path.resolve(process.cwd(), 'public');
+  const publicDir = fs.existsSync(path.join(appPublic, 'index.html'))
+    ? appPublic
+    : fs.existsSync(path.join(cwdPublic, 'index.html'))
+    ? cwdPublic
+    : appPublic;
+
   if (!fs.existsSync(publicDir)) {
     fs.mkdirSync(publicDir, { recursive: true });
   }
@@ -46,7 +53,7 @@ async function bootstrap() {
     prefix: '/',
   });
 
-  registerApiRoutes(app, db, config, activePort);
+  registerApiRoutes(app, db, config, () => activePort);
 
   app.setNotFoundHandler((req, reply) => {
     if (req.raw.url && req.raw.url.startsWith('/api/')) {
@@ -59,8 +66,30 @@ async function bootstrap() {
     return reply.status(404).send('Page not found');
   });
 
+  let bound = false;
+  const maxPortTries = 30;
+
+  for (let attempt = 0; attempt < maxPortTries; attempt++) {
+    try {
+      await app.listen({ port: activePort, host: config.host });
+      bound = true;
+      break;
+    } catch (err: any) {
+      if (err && err.code === 'EADDRINUSE') {
+        activePort++;
+      } else {
+        console.error('Fatal error starting server:', err);
+        process.exit(1);
+      }
+    }
+  }
+
+  if (!bound) {
+    console.error(`Fatal error: Could not find an available port starting from ${config.port}`);
+    process.exit(1);
+  }
+
   try {
-    await app.listen({ port: activePort, host: config.host });
     const netDetails = await getNetworkDetails(activePort);
 
     console.log('\n=============================================================');
