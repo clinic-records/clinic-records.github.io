@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.sqlite*
+*.db*
+data/*.db*
+!data/.gitkeep
+storage/patients/*
+!storage/patients/.gitkeep
+backups/*.db*
+!backups/.gitkeep
+config.json
+.DS_Store
+

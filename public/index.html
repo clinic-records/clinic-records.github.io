@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام سجلات المرضى بالعيادة</title>
+  <meta name="description" content="نظام محلي متكامل لإدارة سجلات وملفات وفيديوهات المرضى بالعيادة">
+
+  <!-- Google Fonts: Cairo and Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="/app.css">
+</head>
+
+<body>
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand-section">
+        <div class="brand-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            <path d="M12 9v6m-3-3h6" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">سجلات العيادة الطبية</h1>
+          <div class="brand-subtitle">
+            <span class="status-indicator online"></span>
+            <span>إدارة سجلات وملفات المرضى</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <!-- Live Online Users Badge -->
+        <div id="online-users-badge" class="online-users-badge" title="عدد الأجهزة المتصلة حالياً">
+          <span class="pulse-dot"></span>
+          <span id="online-users-count">1</span>
+          <span class="online-users-text">متصل بالشبكة</span>
+        </div>
+
+        <!-- Database Hot Backup Button -->
+        <button id="btn-backup" class="btn btn-secondary" title="نسخ احتياطي لقاعدة البيانات">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          <span>نسخ احتياطي</span>
+        </button>
+
+        <!-- New Patient Button -->
+        <button id="btn-add-patient" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>مريض جديد</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- Live Stats Grid (4 Cards Balanced) -->
+    <section class="stats-grid" id="stats-section">
+      <!-- 1. Total Active Patients & Registered Today -->
+      <div class="stat-card stat-card-combined">
+        <div class="stat-combined-row">
+          <div class="stat-icon-wrapper teal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">إجمالي المرضى المسجلين</span>
+            <span class="stat-value" id="stat-patients-count">0</span>
+          </div>
+        </div>
+
+        <div class="stat-divider"></div>
+
+        <div class="stat-combined-row">
+          <div class="stat-icon-wrapper cyan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">عدد المسجلين اليوم</span>
+            <span class="stat-value" id="stat-patients-today-count">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Combined Files & Media (PDF & Videos) -->
+      <div class="stat-card stat-card-combined">
+        <div class="stat-combined-row">
+          <div class="stat-icon-wrapper blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">المستندات (PDF)</span>
+            <span class="stat-value" id="stat-documents-count">0</span>
+          </div>
+        </div>
+
+        <div class="stat-divider"></div>
+
+        <div class="stat-combined-row">
+          <div class="stat-icon-wrapper purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+              <line x1="7" y1="2" x2="7" y2="22" />
+              <line x1="17" y1="2" x2="17" y2="22" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <line x1="2" y1="7" x2="7" y2="7" />
+              <line x1="2" y1="17" x2="7" y2="17" />
+              <line x1="17" y1="17" x2="22" y2="17" />
+              <line x1="17" y1="7" x2="22" y2="7" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">مقاطع الفيديو</span>
+            <span class="stat-value" id="stat-videos-count">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Combined Storage & Recycle Bin -->
+      <div class="stat-card stat-card-combined">
+        <div class="stat-combined-row">
+          <div class="stat-icon-wrapper amber">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">المساحة المستخدمة</span>
+            <span class="stat-value" id="stat-storage-size">0 MB</span>
+          </div>
+        </div>
+
+        <div class="stat-divider"></div>
+
+        <div class="stat-combined-row stat-clickable" id="stat-row-recycle" title="عرض سلة المحذوفات">
+          <div class="stat-icon-wrapper red">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">سلة المحذوفات</span>
+            <span class="stat-value" id="stat-recycle-count">0</span>
+          </div>
+          <span class="stat-row-arrow">←</span>
+        </div>
+      </div>
+
+      <!-- 4. Network LAN Access & QR Code Card -->
+      <div class="stat-card stat-card-combined stat-clickable" id="btn-network-info"
+        title="عرض رابط الشبكة ورمز QR للأجهزة الأخرى">
+        <div class="stat-combined-row">
+          <div class="stat-icon-wrapper emerald">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+              <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+              <circle cx="12" cy="20" r="1" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">رابط البرنامج على الشبكة</span>
+            <span class="stat-value stat-value-url" id="nav-lan-ip">جارِ الاتصال...</span>
+          </div>
+        </div>
+
+        <div class="stat-divider"></div>
+
+        <div class="stat-combined-row stat-network-qr-row">
+          <div class="stat-qr-preview-wrap" title="اضغط لتكبير رمز QR">
+            <img id="stat-network-qr-thumb" class="stat-network-qr-thumb" alt="رمز QR"
+              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44'%3E%3Crect width='44' height='44' fill='%23f1f5f9'/%3E%3C/svg%3E">
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">رمز QR للدخول السريع</span>
+            <span class="stat-qr-subtext">اضغط لعرض الرمز والنسخ</span>
+          </div>
+          <span class="stat-row-arrow">←</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Search & Filters Toolbar -->
+    <section class="search-section">
+      <div class="search-box-wrapper">
+        <div class="search-input-wrap">
+          <div class="search-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+          <input type="text" id="search-input" class="search-input"
+            placeholder="البحث باسم المريض، رقم الملف، أو رقم الهاتف..." autocomplete="off">
+          <button id="search-clear-btn" class="search-clear-btn hidden" title="مسح">✕</button>
+        </div>
+
+        <button id="btn-toggle-filters" class="btn btn-outline btn-filter-toggle" title="خيارات التصفية والفلاتر">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          <span>فلاتر متقدمة</span>
+          <span id="active-filters-count-badge" class="badge-count hidden">0</span>
+        </button>
+      </div>
+
+      <!-- Advanced Filters Panel -->
+      <div id="advanced-filters-panel" class="advanced-filters-panel">
+        <div class="filters-grid">
+          <!-- Date Filter Preset & Custom -->
+          <div class="filter-group filter-group-date">
+            <label class="filter-label">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span>تاريخ التسجيل:</span>
+            </label>
+            <div class="date-preset-buttons" id="date-preset-buttons">
+              <button type="button" class="btn-preset active" data-date-preset="all">الكل</button>
+              <button type="button" class="btn-preset" data-date-preset="today">اليوم</button>
+              <button type="button" class="btn-preset" data-date-preset="week">آخر 7 أيام</button>
+              <button type="button" class="btn-preset" data-date-preset="month">هذا الشهر</button>
+              <button type="button" class="btn-preset" data-date-preset="custom">مخصص</button>
+            </div>
+            <div id="custom-date-inputs" class="custom-date-inputs hidden">
+              <div class="date-input-wrap">
+                <span>من:</span>
+                <input type="date" id="filter-date-from" class="filter-date-input" aria-label="تاريخ البدء">
+              </div>
+              <div class="date-input-wrap">
+                <span>إلى:</span>
+                <input type="date" id="filter-date-to" class="filter-date-input" aria-label="تاريخ النهاية">
+              </div>
+            </div>
+          </div>
+
+          <!-- Has Files Filter -->
+          <div class="filter-group">
+            <label for="filter-has-files" class="filter-label">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <span>المرفقات والملفات:</span>
+            </label>
+            <select id="filter-has-files" class="filter-select">
+              <option value="all">جميع السجلات</option>
+              <option value="with_files">يحتوي على مرفقات (PDF أو فيديو)</option>
+              <option value="without_files">بدون أي مرفقات</option>
+            </select>
+          </div>
+
+          <!-- Sorting Filter -->
+          <div class="filter-group">
+            <label for="filter-sort-by" class="filter-label">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <polyline points="19 12 12 19 5 12" />
+              </svg>
+              <span>الترتيب حسب:</span>
+            </label>
+            <select id="filter-sort-by" class="filter-select">
+              <option value="created_desc">الأحدث تسجيلاً أولاً</option>
+              <option value="created_asc">الأقدم تسجيلاً أولاً</option>
+              <option value="name_asc">اسم المريض أبجدياً (أ - ي)</option>
+              <option value="file_asc">رقم الملف تصاعدياً</option>
+            </select>
+          </div>
+
+          <!-- Reset Filters Button -->
+          <div class="filter-group filter-group-actions">
+            <button id="btn-reset-filters" class="btn btn-outline btn-reset-filters hidden" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+              <span>إعادة ضبط الفلاتر</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Patients List Table Card with Filter Tabs -->
+    <section class="table-card">
+      <div class="table-tabs-header">
+        <div class="table-tabs-nav" id="table-tabs-nav">
+          <button class="table-tab active" data-tab="all">
+            <span>الكل</span>
+            <span class="tab-badge" id="tab-all-badge">0</span>
+          </button>
+          <button class="table-tab" data-tab="male">
+            <span>ذكور</span>
+            <span class="tab-badge" id="tab-male-badge">0</span>
+          </button>
+          <button class="table-tab" data-tab="female">
+            <span>إناث</span>
+            <span class="tab-badge" id="tab-female-badge">0</span>
+          </button>
+          <button class="table-tab tab-recycle" data-tab="recycle">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            <span>سلة المحذوفات</span>
+            <span class="tab-badge tab-badge-danger hidden" id="tab-recycle-badge">0</span>
+          </button>
+        </div>
+
+        <div class="table-tab-extra-actions">
+          <button id="btn-empty-recycle-tab" class="btn btn-sm btn-danger-outline hidden"
+            title="إفراغ سلة المحذوفات بالكامل">
+            <span>إفراغ سلة المحذوفات بالكامل</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-header">
+        <div class="table-header-info">
+          <h2 class="table-title" id="table-active-title">قائمة المرضى المسجلين</h2>
+          <span class="results-badge" id="results-count-badge">0 مريض</span>
+        </div>
+
+        <!-- Batch Actions Bar (shown when patients are selected) -->
+        <div id="batch-actions-bar" class="batch-actions-bar hidden">
+          <div class="batch-count-wrap">
+            <span>تم تحديد</span>
+            <span class="batch-count-number" id="batch-selected-count">0</span>
+            <span>مريض</span>
+          </div>
+          <div class="batch-buttons-wrap">
+            <button id="btn-batch-delete" class="btn btn-sm btn-danger-outline"
+              title="نقل المرضى المحددين إلى سلة المحذوفات">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>نقل المحدد للسلة</span>
+            </button>
+
+            <!-- Recycle Tab Specific Batch Actions -->
+            <button id="btn-tab-recycle-restore" class="btn btn-sm btn-primary hidden" title="استعادة المرضى المحددين">
+              <span>استعادة المحدد</span>
+            </button>
+            <button id="btn-tab-recycle-permanent" class="btn btn-sm btn-danger hidden"
+              title="حذف المرضى المحددين نهائياً">
+              <span>حذف نهائي للمحدد</span>
+            </button>
+
+            <button id="btn-batch-cancel" class="btn btn-sm btn-outline">
+              إلغاء التحديد
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="patients-table" id="patients-table-element">
+          <thead>
+            <tr>
+              <th style="width: 44px; text-align: center;">
+                <input type="checkbox" id="select-all-checkbox" class="table-checkbox" title="تحديد الكل">
+              </th>
+              <th>رقم الملف</th>
+              <th>اسم المريض</th>
+              <th>الهاتف</th>
+              <th>النوع / العمر</th>
+              <th id="th-col-diag">التشخيص</th>
+              <th id="th-col-date">تاريخ التسجيل</th>
+              <th id="th-col-actions" class="hidden" style="text-align: center;">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="patients-table-body">
+            <!-- Dynamically populated via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Centered Polished Empty State -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-icon-badge">📁</div>
+        <h3>لا يوجد مرضى مسجلين حتى الآن</h3>
+        <p>اضغط على زر "مريض جديد" لتسجيل مريض والبدء في حفظ بياناته وملفاته.</p>
+        <button id="btn-empty-add-patient" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>مريض جديد</span>
+        </button>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-footer" id="pagination-section">
+        <div class="pagination-info" id="pagination-info-text">صفحة 1 من 1</div>
+        <div class="pagination-buttons">
+          <button id="btn-prev-page" class="btn btn-sm btn-outline" disabled>الصفحة السابقة</button>
+          <button id="btn-next-page" class="btn btn-sm btn-outline" disabled>الصفحة التالية</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Add / Edit Patient Modal -->
+  <div id="modal-patient" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-patient-title">إضافة مريض جديد</h3>
+        <button class="modal-close-btn" data-close-modal="modal-patient">✕</button>
+      </div>
+      <form id="form-patient">
+        <input type="hidden" id="patient-form-id">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label for="input-full-name">اسم المريض <span class="required">*</span></label>
+            <input type="text" id="input-full-name" required placeholder="مثال: أحمد محمد علي">
+          </div>
+          <div class="form-group">
+            <label for="input-file-number">رقم الملف (يُترك فارغاً للترقيم التلقائي)</label>
+            <input type="text" id="input-file-number" placeholder="مثال: CL-000101">
+          </div>
+          <div class="form-group">
+            <label for="input-phone">رقم الهاتف</label>
+            <input type="tel" id="input-phone" placeholder="مثال: 01012345678">
+          </div>
+          <div class="form-group">
+            <label for="input-national-id">الرقم القومي / الهوية</label>
+            <input type="text" id="input-national-id" placeholder="مثال: 2980101...">
+          </div>
+          <div class="form-group">
+            <label for="input-gender">النوع <span class="required">*</span></label>
+            <select id="input-gender" required>
+              <option value="" disabled selected>اختر النوع (ذكر / أنثى) *</option>
+              <option value="male">ذكر</option>
+              <option value="female">أنثى</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="input-age">العمر (بالسنوات)</label>
+            <input type="number" id="input-age" min="0" max="130" placeholder="مثال: 8">
+          </div>
+          <div class="form-group">
+            <label for="input-birth-date">تاريخ الميلاد</label>
+            <input type="date" id="input-birth-date">
+          </div>
+          <div class="form-group full-width">
+            <label for="input-diagnosis">التشخيص الطبي / الحالة</label>
+            <input type="text" id="input-diagnosis" placeholder="مثال: اضطراب طيف التوحد / صعوبات تعلم / تخاطب">
+          </div>
+          <div class="form-group full-width">
+            <label for="input-notes">ملاحظات إضافية</label>
+            <textarea id="input-notes" rows="3" placeholder="أي ملاحظات إضافية تخص المريض..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close-modal="modal-patient">إلغاء</button>
+          <button type="button" class="btn btn-secondary" id="btn-save-patient-only">حفظ فقط</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-patient">
+            <span id="btn-save-patient-text">الحفظ والانتقال لرفع الملفات ←</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Patient Full Profile Modal (5 Files Sections) -->
+  <div id="modal-patient-details" class="modal-backdrop modal-xl hidden">
+    <div class="modal-box modal-box-large">
+      <div class="modal-header patient-detail-header">
+        <div class="patient-title-wrap">
+          <span class="file-code-badge" id="detail-file-number">CL-000000</span>
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <h2 id="detail-full-name">اسم المريض</h2>
+              <span id="detail-viewers-badge" class="concurrent-viewers-tag hidden"
+                title="هذا الملف مفتوح حالياً على جهاز آخر">
+                👁️ مفتوح على جهاز آخر
+              </span>
+            </div>
+            <div class="detail-meta-row" id="detail-meta-row">
+              <!-- Meta items -->
+            </div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <!-- Share Direct Patient Link & QR Button -->
+          <button id="btn-copy-patient-link" class="btn btn-sm btn-outline btn-patient-share-qr"
+            title="مشاركة ملف هذا المريض عبر رابط مباشر ورمز QR">
+            <span class="btn-qr-thumb-wrap">
+              <img id="btn-patient-qr-thumb" class="btn-patient-qr-thumb" alt="QR"
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Crect width='22' height='22' fill='%23ccfbf1' rx='2'/%3E%3Cpath d='M3 3h6v6H3zm10 0h6v6h-6zM3 13h6v6H3zm10 4h2v2h-2zm4-4h2v6h-2z' fill='%230d9488'/%3E%3C/svg%3E">
+            </span>
+            <span>مشاركة / QR</span>
+          </button>
+          <button id="btn-print-patient" class="btn btn-sm btn-outline" title="طباعة كارت المريض">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            <span>طباعة</span>
+          </button>
+          <button id="btn-edit-patient-details" class="btn btn-sm btn-secondary">
+            <span>تعديل البيانات</span>
+          </button>
+          <button class="modal-close-btn" data-close-modal="modal-patient-details">✕</button>
+        </div>
+      </div>
+
+      <!-- Live Concurrent Conflict Alert Container -->
+      <div id="patient-conflict-alert-container"></div>
+
+      <div class="patient-details-body">
+        <!-- Diagnosis and Doctor Notes -->
+        <div class="patient-summary-box">
+          <div class="summary-item">
+            <strong>التشخيص:</strong>
+            <span id="detail-diagnosis">لا يوجد تشخيص مسجل</span>
+          </div>
+          <div class="summary-item">
+            <strong>ملاحظات:</strong>
+            <span id="detail-notes">لا توجد ملاحظات</span>
+          </div>
+        </div>
+
+        <!-- Five Files Section Header -->
+        <div class="documents-section-header">
+          <h3>الملفات والوثائق الطبية</h3>
+          <p>تُحفظ جميع الملفات والفيديوهات محلياً على جهاز العيادة داخل مجلد المريض</p>
+        </div>
+
+        <div class="documents-grid">
+          <!-- 1. Separate PDF -->
+          <div class="doc-card" id="card-doc-separate">
+            <div class="doc-card-header">
+              <div class="doc-type-badge pdf">PDF</div>
+              <h4>1. ملف منفصل</h4>
+            </div>
+            <div class="doc-card-body" id="body-doc-separate">
+              <!-- Dynamically populated via JavaScript -->
+            </div>
+          </div>
+
+          <!-- 2. Program PDF -->
+          <div class="doc-card" id="card-doc-program">
+            <div class="doc-card-header">
+              <div class="doc-type-badge pdf">PDF</div>
+              <h4>2. ملف برنامج</h4>
+            </div>
+            <div class="doc-card-body" id="body-doc-program">
+              <!-- Dynamically populated via JavaScript -->
+            </div>
+          </div>
+
+          <!-- 3. Tests PDF -->
+          <div class="doc-card" id="card-doc-tests">
+            <div class="doc-card-header">
+              <div class="doc-type-badge pdf">PDF</div>
+              <h4>3. ملف اختبارات</h4>
+            </div>
+            <div class="doc-card-body" id="body-doc-tests">
+              <!-- Dynamically populated via JavaScript -->
+            </div>
+          </div>
+
+          <!-- 4. Behavioral Plan PDF -->
+          <div class="doc-card" id="card-doc-behavioral_plan">
+            <div class="doc-card-header">
+              <div class="doc-type-badge pdf">PDF</div>
+              <h4>4. الخطة السلوكية</h4>
+            </div>
+            <div class="doc-card-body" id="body-doc-behavioral_plan">
+              <!-- Dynamically populated via JavaScript -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Patient Videos Section -->
+        <div class="videos-section">
+          <div class="videos-section-top">
+            <div>
+              <h4>5. تسجيلات الفيديو</h4>
+              <p class="subtitle">يمكنك رفع وتشغيل مقاطع الفيديو الخاصة بجلسات المريض</p>
+            </div>
+            <button id="btn-upload-video-trigger" class="btn btn-sm btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>رفع فيديو جديد</span>
+            </button>
+            <input type="file" id="input-video-file" accept="video/*" class="hidden">
+          </div>
+
+          <!-- Video upload progress bar -->
+          <div id="video-upload-progress-container" class="upload-progress-box hidden">
+            <div class="progress-labels">
+              <span id="video-upload-filename">جاري رفع الفيديو...</span>
+              <span id="video-upload-percentage">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div id="video-upload-progress-bar" class="progress-bar-fill"></div>
+            </div>
+          </div>
+
+          <!-- Videos Gallery Grid -->
+          <div id="videos-grid" class="videos-grid">
+            <!-- Dynamically populated via JavaScript -->
+          </div>
+        </div>
+
+        <!-- Next-Step UX Navigation Footer -->
+        <div class="patient-details-footer">
+          <button id="btn-details-add-another" class="btn btn-primary">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>+ تسجيل مريض جديد آخر</span>
+          </button>
+          <button class="btn btn-outline" data-close-modal="modal-patient-details">
+            <span>← العودة لقائمة المرضى</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Viewer Modal -->
+  <div id="modal-pdf-viewer" class="modal-backdrop modal-fullscreen hidden">
+    <div class="modal-box modal-box-fullscreen">
+      <div class="modal-header">
+        <h3 id="pdf-viewer-title">عرض ملف PDF</h3>
+        <div class="header-actions">
+          <a id="btn-pdf-download" href="#" class="btn btn-sm btn-outline" download>تحميل الملف</a>
+          <button class="modal-close-btn" data-close-modal="modal-pdf-viewer">✕</button>
+        </div>
+      </div>
+      <div class="pdf-viewer-body">
+        <iframe id="pdf-iframe" src="" frameborder="0"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Player Modal -->
+  <div id="modal-video-player" class="modal-backdrop hidden">
+    <div class="modal-box modal-box-medium">
+      <div class="modal-header">
+        <h3 id="video-player-title">تشغيل الفيديو</h3>
+        <button class="modal-close-btn" data-close-modal="modal-video-player">✕</button>
+      </div>
+      <div class="video-player-body">
+        <video id="html5-video-player" controls preload="metadata" playsinline>
+          متصفحك لا يدعم تشغيل هذا الفيديو.
+        </video>
+      </div>
+    </div>
+  </div>
+
+  <!-- Network & QR Code Modal -->
+  <div id="modal-network" class="modal-backdrop hidden">
+    <div class="modal-box modal-box-medium text-center">
+      <div class="modal-header">
+        <h3>الاتصال بالبرنامج عبر الشبكة المحلية (WiFi)</h3>
+        <button class="modal-close-btn" data-close-modal="modal-network">✕</button>
+      </div>
+      <div class="modal-body-network">
+        <p class="network-desc">
+          امسح الرمز بكاميرا الهاتف أو التابلت لفتح البرنامج مباشرة (يشترط الاتصال بنفس شبكة الواي فاي):
+        </p>
+
+        <div class="qr-code-wrapper">
+          <img id="network-qr-image" src="" alt="QR Code" width="260" height="260">
+        </div>
+
+        <div class="network-link-box">
+          <span class="link-label">رابط البرنامج:</span>
+          <div class="copy-link-row">
+            <code id="network-lan-url">http://...</code>
+            <button id="btn-copy-lan-url" class="btn btn-sm btn-outline">نسخ الرابط</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Direct Share & QR Modal -->
+  <div id="modal-share-patient" class="modal-backdrop hidden">
+    <div class="modal-box modal-box-medium text-center">
+      <div class="modal-header">
+        <h3>مشاركة ملف المريض</h3>
+        <button class="modal-close-btn" data-close-modal="modal-share-patient">✕</button>
+      </div>
+      <div class="modal-body-network">
+        <div>
+          <h4 id="share-patient-name" style="font-size: 1.15rem; font-weight: 700; color: var(--primary);">اسم المريض
+          </h4>
+          <span class="file-code-badge" id="share-patient-file-number"
+            style="margin-top: 6px; display: inline-block;">CL-000000</span>
+        </div>
+
+        <p class="network-desc">
+          امسح هذا الرمز بكاميرا الهاتف أو التابلت لفتح ملف المريض مباشرة عبر الشبكة:
+        </p>
+
+        <div class="qr-code-wrapper">
+          <img id="share-patient-qr-image" src="" alt="QR Code" width="240" height="240">
+        </div>
+
+        <div class="network-link-box">
+          <span class="link-label">رابط ملف المريض:</span>
+          <div class="copy-link-row">
+            <code id="share-patient-url">http://...</code>
+            <button id="btn-copy-share-url" class="btn btn-sm btn-outline">نسخ الرابط</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Database Backup & Restore Manager Modal -->
+  <div id="modal-backup-manager" class="modal-backdrop hidden">
+    <div class="modal-box modal-box-large">
+      <div class="modal-header">
+        <div>
+          <h3>إدارة واستعادة النسخ الاحتياطية</h3>
+          <p class="modal-subtitle">حفظ واسترجاع نسخ قاعدة بيانات العيادة بأمان</p>
+        </div>
+        <button class="modal-close-btn" data-close-modal="modal-backup-manager">✕</button>
+      </div>
+
+      <div class="backup-manager-body">
+        <div class="backup-actions-toolbar">
+          <button id="btn-create-backup-now" class="btn btn-primary">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>إنشاء نسخة احتياطية جديدة الآن</span>
+          </button>
+
+          <label for="input-upload-backup" class="btn btn-secondary btn-upload-backup" style="cursor: pointer;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span>استعادة من ملف خارجي (.db)</span>
+            <input type="file" id="input-upload-backup" accept=".db,.sqlite" class="hidden">
+          </label>
+        </div>
+
+        <div class="backup-alert-note">
+          <span class="note-icon">💡</span>
+          <div>
+            <strong>تخزين آمن:</strong> يتم حفظ جميع النسخ تلقائياً في مجلد <code>backups/</code> على السيرفر. عند طلب الاستعادة، يتم إنشاء نسخة احترازية تلقائياً قبل تطبيق الاسترجاع.
+          </div>
+        </div>
+
+        <div class="backup-list-section">
+          <h4 class="backup-list-title">النسخ الاحتياطية المتوفرة على السيرفر</h4>
+          <div id="backup-list-container" class="backup-list-container">
+            <div class="backup-loading-state">جاري تحميل قائمة النسخ...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden PDF file input -->
+  <input type="file" id="hidden-pdf-input" accept="application/pdf" class="hidden">
+
+  <!-- Floating Toast Notifications Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+
+</html>
