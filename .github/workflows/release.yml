@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows x64 (Standalone Portable)
+    name: Build Windows x64 (Native .exe & Portable)
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -56,7 +56,37 @@ jobs:
           Copy-Item -Recurse -Force "node_modules" "$pkgDir/node_modules"
           Copy-Item -Force "package.json" "$pkgDir/"
           Copy-Item -Force "start.bat" "$pkgDir/"
+          Copy-Item -Force "start.bat" "$pkgDir/start-debug.bat"
+          Copy-Item -Force "INSTRUCTIONS.txt" "$pkgDir/"
           Copy-Item -Force "README.md" "$pkgDir/"
+
+          # Compile native Windows GUI Launcher "Clinic Records.exe"
+          $source = @"
+          using System;
+          using System.Diagnostics;
+          using System.IO;
+
+          class Program {
+              static void Main() {
+                  string appDir = AppDomain.CurrentDomain.BaseDirectory;
+                  string nodePath = Path.Combine(appDir, "runtime", "node.exe");
+                  string scriptPath = Path.Combine(appDir, "dist", "server.js");
+
+                  if (!File.Exists(nodePath)) {
+                      nodePath = "node";
+                  }
+
+                  ProcessStartInfo psi = new ProcessStartInfo();
+                  psi.FileName = nodePath;
+                  psi.Arguments = "\"" + scriptPath + "\"";
+                  psi.WorkingDirectory = appDir;
+                  psi.UseShellExecute = false;
+                  psi.CreateNoWindow = true;
+                  Process.Start(psi);
+              }
+          }
+"@
+          Add-Type -TypeDefinition $source -Language CSharp -OutputAssembly "$pkgDir/Clinic Records.exe" -OutputType WindowsApplication
 
           # Create empty keep files
           New-Item -ItemType File -Force -Path "$pkgDir/data/.gitkeep"
@@ -73,7 +103,7 @@ jobs:
           path: ClinicRecords-Windows-x64.zip
 
   build-macos-arm64:
-    name: Build macOS Apple Silicon (Standalone Portable)
+    name: Build macOS Apple Silicon (.app Bundle)
     runs-on: macos-14
     steps:
       - name: Checkout code
@@ -94,25 +124,65 @@ jobs:
       - name: Prune dev dependencies
         run: npm prune --omit=dev
 
-      - name: Package macOS Apple Silicon
+      - name: Package macOS Apple Silicon .app
         run: |
-          PKG_DIR="ClinicRecords-macOS-AppleSilicon"
-          mkdir -p "$PKG_DIR/data" "$PKG_DIR/backups" "$PKG_DIR/storage/patients" "$PKG_DIR/runtime/bin"
+          PKG_NAME="ClinicRecords-macOS-AppleSilicon"
+          APP_DIR="$PKG_NAME/Clinic Records.app"
+          CONTENTS="$APP_DIR/Contents"
+          RESOURCES="$CONTENTS/Resources/app"
+          MACOS_BIN="$CONTENTS/MacOS"
+
+          mkdir -p "$MACOS_BIN" "$RESOURCES/data" "$RESOURCES/backups" "$RESOURCES/storage/patients" "$RESOURCES/runtime/bin"
           
           # Download standalone Node.js binary for Apple Silicon
           curl -fsSL https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-arm64.tar.gz | tar -xz
-          cp node-v20.18.0-darwin-arm64/bin/node "$PKG_DIR/runtime/bin/node"
-          chmod +x "$PKG_DIR/runtime/bin/node"
+          cp node-v20.18.0-darwin-arm64/bin/node "$RESOURCES/runtime/bin/node"
+          chmod +x "$RESOURCES/runtime/bin/node"
           rm -rf node-v20.18.0-darwin-arm64
 
-          # Copy application files
-          cp -r dist "$PKG_DIR/"
-          cp -r public "$PKG_DIR/"
-          cp -r node_modules "$PKG_DIR/"
-          cp package.json start.command README.md "$PKG_DIR/"
-          chmod +x "$PKG_DIR/start.command"
+          # Copy application files into app bundle
+          cp -r dist "$RESOURCES/"
+          cp -r public "$RESOURCES/"
+          cp -r node_modules "$RESOURCES/"
+          cp package.json "$RESOURCES/"
 
-          zip -r "ClinicRecords-macOS-AppleSilicon.zip" "$PKG_DIR"
+          # Create Info.plist
+          cat << 'EOF' > "$CONTENTS/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>Clinic Records</string>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.clinicrecords.app</string>
+    <key>CFBundleName</key>
+    <string>Clinic Records</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+</dict>
+</plist>
+EOF
+
+          # Create launch executable
+          cat << 'EOF' > "$MACOS_BIN/Clinic Records"
+#!/bin/bash
+DIR="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
+cd "$DIR"
+exec "$DIR/runtime/bin/node" "$DIR/dist/server.js"
+EOF
+          chmod +x "$MACOS_BIN/Clinic Records"
+
+          # Copy instructions and debug launcher
+          cp INSTRUCTIONS.txt "$PKG_NAME/"
+          cp start.command "$PKG_NAME/start-debug.command"
+          chmod +x "$PKG_NAME/start-debug.command"
+
+          zip -r "ClinicRecords-macOS-AppleSilicon.zip" "$PKG_NAME"
 
       - name: Upload macOS ARM64 Artifact
         uses: actions/upload-artifact@v4
@@ -121,7 +191,7 @@ jobs:
           path: ClinicRecords-macOS-AppleSilicon.zip
 
   build-macos-intel:
-    name: Build macOS Intel (Standalone Portable)
+    name: Build macOS Intel (.app Bundle)
     runs-on: macos-13
     steps:
       - name: Checkout code
@@ -142,25 +212,65 @@ jobs:
       - name: Prune dev dependencies
         run: npm prune --omit=dev
 
-      - name: Package macOS Intel
+      - name: Package macOS Intel .app
         run: |
-          PKG_DIR="ClinicRecords-macOS-Intel"
-          mkdir -p "$PKG_DIR/data" "$PKG_DIR/backups" "$PKG_DIR/storage/patients" "$PKG_DIR/runtime/bin"
+          PKG_NAME="ClinicRecords-macOS-Intel"
+          APP_DIR="$PKG_NAME/Clinic Records.app"
+          CONTENTS="$APP_DIR/Contents"
+          RESOURCES="$CONTENTS/Resources/app"
+          MACOS_BIN="$CONTENTS/MacOS"
+
+          mkdir -p "$MACOS_BIN" "$RESOURCES/data" "$RESOURCES/backups" "$RESOURCES/storage/patients" "$RESOURCES/runtime/bin"
           
           # Download standalone Node.js binary for Intel macOS
           curl -fsSL https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-x64.tar.gz | tar -xz
-          cp node-v20.18.0-darwin-x64/bin/node "$PKG_DIR/runtime/bin/node"
-          chmod +x "$PKG_DIR/runtime/bin/node"
+          cp node-v20.18.0-darwin-x64/bin/node "$RESOURCES/runtime/bin/node"
+          chmod +x "$RESOURCES/runtime/bin/node"
           rm -rf node-v20.18.0-darwin-x64
 
-          # Copy application files
-          cp -r dist "$PKG_DIR/"
-          cp -r public "$PKG_DIR/"
-          cp -r node_modules "$PKG_DIR/"
-          cp package.json start.command README.md "$PKG_DIR/"
-          chmod +x "$PKG_DIR/start.command"
+          # Copy application files into app bundle
+          cp -r dist "$RESOURCES/"
+          cp -r public "$RESOURCES/"
+          cp -r node_modules "$RESOURCES/"
+          cp package.json "$RESOURCES/"
 
-          zip -r "ClinicRecords-macOS-Intel.zip" "$PKG_DIR"
+          # Create Info.plist
+          cat << 'EOF' > "$CONTENTS/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>Clinic Records</string>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.clinicrecords.app</string>
+    <key>CFBundleName</key>
+    <string>Clinic Records</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.15</string>
+</dict>
+</plist>
+EOF
+
+          # Create launch executable
+          cat << 'EOF' > "$MACOS_BIN/Clinic Records"
+#!/bin/bash
+DIR="$(cd "$(dirname "$0")/../Resources/app" && pwd)"
+cd "$DIR"
+exec "$DIR/runtime/bin/node" "$DIR/dist/server.js"
+EOF
+          chmod +x "$MACOS_BIN/Clinic Records"
+
+          # Copy instructions and debug launcher
+          cp INSTRUCTIONS.txt "$PKG_NAME/"
+          cp start.command "$PKG_NAME/start-debug.command"
+          chmod +x "$PKG_NAME/start-debug.command"
+
+          zip -r "ClinicRecords-macOS-Intel.zip" "$PKG_NAME"
 
       - name: Upload macOS Intel Artifact
         uses: actions/upload-artifact@v4
@@ -169,7 +279,7 @@ jobs:
           path: ClinicRecords-macOS-Intel.zip
 
   build-linux:
-    name: Build Linux x64 (Standalone Portable)
+    name: Build Linux x64 Package
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -205,7 +315,7 @@ jobs:
           cp -r dist "$PKG_DIR/"
           cp -r public "$PKG_DIR/"
           cp -r node_modules "$PKG_DIR/"
-          cp package.json start.sh README.md "$PKG_DIR/"
+          cp package.json start.sh INSTRUCTIONS.txt README.md "$PKG_DIR/"
           chmod +x "$PKG_DIR/start.sh"
 
           tar -czf "ClinicRecords-Linux-x64.tar.gz" "$PKG_DIR"
@@ -241,8 +351,47 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          body: |
+            ## 🏥 نظام إدارة سجلات وتاريخ المرضى للعيادات الطبية
+            ### Clinic Patient Records Management System
+
+            نسخ محمولة بالكامل ولا تتطلب أي تثبيت مسبق (No prerequisites or Node.js required).
+
+            ---
+
+            ### 🚀 خطوات التشغيل وتخطي تنبيهات الأمان (Installation & Quick Start)
+
+            #### 🪟 ويندوز (Windows 10 / 11):
+            1. حمل ملف `ClinicRecords-Windows-x64.zip` وفك الضغط.
+            2. اضغط نقرتين على **`Clinic Records.exe`**.
+            3. **إذا ظهرت نافذة حماية ويندوز (Windows protected your PC):**
+               - اضغط على **More info** (المزيد من المعلومات).
+               - اضغط على **Run anyway** (تشغيل على أي حال).
+            *(يتوفر أيضاً ملف `start-debug.bat` في حال أردت متابعة سجلات السيرفر)*.
+
+            #### 🍏 ماك (macOS):
+            1. حمل ملف النظام المناسب لجهازك وفك الضغط:
+               - لأجهزة الماك الحديثة (M1/M2/M3/M4): `ClinicRecords-macOS-AppleSilicon.zip`
+               - لأجهزة الماك القديمة (Intel): `ClinicRecords-macOS-Intel.zip`
+            2. افتح تطبيق **`Clinic Records.app`**.
+            3. **لتخطي تنبيه ماك عند أول تشغيل:**
+               - اضغط بزر الفأرة الأيمن (**Right-Click**) على التطبيق واختر **Open** (فتح).
+               - اضغط على زر **Open** في الرسالة التأكيدية.
+               - *(أو شغّل الأمر: `xattr -cr "Clinic Records.app"` في Terminal)*.
+
+            #### 🐧 لينكس (Linux):
+            1. فك الضغط عن `ClinicRecords-Linux-x64.tar.gz`.
+            2. شغّل الأمر: `./start.sh`.
+
+            ---
+
+            ### 📱 الربط مع هواتف العيادة (Mobile & Wi-Fi):
+            - تأكد من اتصال الهاتف والكمبيوتر بنفس شبكة الواي فاي (Wi-Fi).
+            - امسح رمز الـ **QR Code** الظاهر في واجهة البرنامج للوصول الفوري للسجلات وإضافة الزيارات من الهاتف.
           files: |
             clinic-records-windows/ClinicRecords-Windows-x64.zip
             clinic-records-macos-arm64/ClinicRecords-macOS-AppleSilicon.zip
             clinic-records-macos-intel/ClinicRecords-macOS-Intel.zip
             clinic-records-linux/ClinicRecords-Linux-x64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
