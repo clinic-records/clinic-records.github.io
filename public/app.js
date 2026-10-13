@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
     endDate: '',
     hasFilesFilter: 'all',
     sortBy: 'created_desc',
+
+    // Pending photo for create/edit form
+    pendingPhotoBase64: null,
+    removePhotoPending: false,
   };
 
   // DOM Elements
@@ -185,6 +189,23 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCreateBackupNow: document.getElementById('btn-create-backup-now'),
     inputUploadBackup: document.getElementById('input-upload-backup'),
     backupListContainer: document.getElementById('backup-list-container'),
+
+    // Patient Avatar & Photo Elements
+    detailAvatarWrap: document.getElementById('detail-avatar-wrap'),
+    detailAvatarImg: document.getElementById('detail-avatar-img'),
+    detailAvatarFallback: document.getElementById('detail-avatar-fallback'),
+    btnChangeDetailPhoto: document.getElementById('btn-change-detail-photo'),
+    inputDetailPhoto: document.getElementById('input-detail-photo'),
+    formAvatarPreviewWrap: document.getElementById('form-avatar-preview-wrap'),
+    formAvatarImg: document.getElementById('form-avatar-img'),
+    formAvatarPlaceholder: document.getElementById('form-avatar-placeholder'),
+    inputPatientPhoto: document.getElementById('input-patient-photo'),
+    btnRemovePhoto: document.getElementById('btn-remove-photo'),
+    btnPhotoUploadLabel: document.getElementById('btn-photo-upload-label'),
+    modalPhotoViewer: document.getElementById('modal-photo-viewer'),
+    photoViewerTitle: document.getElementById('photo-viewer-title'),
+    photoViewerImg: document.getElementById('photo-viewer-img'),
+    btnDeletePhotoFromViewer: document.getElementById('btn-delete-photo-from-viewer'),
 
     // Toast container
     toastContainer: document.getElementById('toast-container'),
@@ -810,7 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td class="td-file"><span class="file-code-badge">${patient.file_number}</span></td>
         <td class="td-name">
-          <span class="patient-name-text">${patient.full_name}</span>
+          <div class="patient-name-cell">
+            <div class="patient-avatar-wrap sm">
+              ${patient.photo_url
+                ? `<img src="${patient.photo_url}" class="patient-avatar-img" alt="${patient.full_name}" loading="lazy">`
+                : `<div class="patient-avatar-fallback ${patient.gender === 'female' ? 'avatar-female' : 'avatar-male'}">${(patient.full_name || '').trim().charAt(0) || 'م'}</div>`
+              }
+            </div>
+            <span class="patient-name-text">${patient.full_name}</span>
+          </div>
         </td>
         <td class="td-phone">${patient.phone ? `<a href="tel:${patient.phone}" class="patient-phone-link">${patient.phone}</a>` : '—'}</td>
         <td class="td-gender-age">${genderBadge} / ${ageText}</td>
@@ -1261,11 +1290,108 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  function resetFormAvatar(photoUrl = null) {
+    state.pendingPhotoBase64 = null;
+    state.removePhotoPending = false;
+    if (elements.inputPatientPhoto) elements.inputPatientPhoto.value = '';
+
+    if (photoUrl) {
+      if (elements.formAvatarImg) {
+        elements.formAvatarImg.src = photoUrl;
+        elements.formAvatarImg.classList.remove('hidden');
+      }
+      if (elements.formAvatarPlaceholder) {
+        elements.formAvatarPlaceholder.classList.add('hidden');
+      }
+      if (elements.btnRemovePhoto) {
+        elements.btnRemovePhoto.classList.remove('hidden');
+      }
+      if (elements.btnPhotoUploadLabel) {
+        elements.btnPhotoUploadLabel.textContent = 'تغيير الصورة';
+      }
+    } else {
+      if (elements.formAvatarImg) {
+        elements.formAvatarImg.src = '';
+        elements.formAvatarImg.classList.add('hidden');
+      }
+      if (elements.formAvatarPlaceholder) {
+        elements.formAvatarPlaceholder.classList.remove('hidden');
+      }
+      if (elements.btnRemovePhoto) {
+        elements.btnRemovePhoto.classList.add('hidden');
+      }
+      if (elements.btnPhotoUploadLabel) {
+        elements.btnPhotoUploadLabel.textContent = 'اختيار صورة المريض';
+      }
+    }
+  }
+
+  if (elements.inputPatientPhoto) {
+    elements.inputPatientPhoto.addEventListener('change', () => {
+      const file = elements.inputPatientPhoto.files && elements.inputPatientPhoto.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('يرجى اختيار ملف صورة صالح (JPG, PNG, WebP)', 'warning');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('حجم الصورة كبير جداً، الحد الأقصى 10 ميجابايت', 'warning');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        state.pendingPhotoBase64 = e.target.result;
+        state.removePhotoPending = false;
+        state.isEditFormDirty = true;
+
+        if (elements.formAvatarImg) {
+          elements.formAvatarImg.src = e.target.result;
+          elements.formAvatarImg.classList.remove('hidden');
+        }
+        if (elements.formAvatarPlaceholder) {
+          elements.formAvatarPlaceholder.classList.add('hidden');
+        }
+        if (elements.btnRemovePhoto) {
+          elements.btnRemovePhoto.classList.remove('hidden');
+        }
+        if (elements.btnPhotoUploadLabel) {
+          elements.btnPhotoUploadLabel.textContent = 'تغيير الصورة';
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (elements.btnRemovePhoto) {
+    elements.btnRemovePhoto.addEventListener('click', () => {
+      state.pendingPhotoBase64 = null;
+      state.removePhotoPending = true;
+      state.isEditFormDirty = true;
+      if (elements.inputPatientPhoto) elements.inputPatientPhoto.value = '';
+
+      if (elements.formAvatarImg) {
+        elements.formAvatarImg.src = '';
+        elements.formAvatarImg.classList.add('hidden');
+      }
+      if (elements.formAvatarPlaceholder) {
+        elements.formAvatarPlaceholder.classList.remove('hidden');
+      }
+      elements.btnRemovePhoto.classList.add('hidden');
+      if (elements.btnPhotoUploadLabel) {
+        elements.btnPhotoUploadLabel.textContent = 'اختيار صورة المريض';
+      }
+    });
+  }
+
   elements.btnAddPatient.addEventListener('click', () => {
     elements.modalPatientTitle.textContent = 'إضافة مريض جديد';
     elements.patientFormId.value = '';
     elements.formPatient.reset();
     elements.inputGender.value = '';
+    resetFormAvatar(null);
     state.isEditFormDirty = false;
     state.saveActionTarget = 'upload';
     if (elements.btnSavePatientText) {
@@ -1294,6 +1420,8 @@ document.addEventListener('DOMContentLoaded', () => {
       elements.inputBirthDate.value = p.birth_date || '';
       elements.inputDiagnosis.value = p.diagnosis || '';
       elements.inputNotes.value = p.notes || '';
+
+      resetFormAvatar(p.photo_url || null);
 
       state.isEditFormDirty = false;
       state.saveActionTarget = 'save';
@@ -1363,6 +1491,8 @@ document.addEventListener('DOMContentLoaded', () => {
       birth_date: elements.inputBirthDate.value || undefined,
       diagnosis: elements.inputDiagnosis.value.trim() || undefined,
       notes: elements.inputNotes.value.trim() || undefined,
+      photo_base64: state.pendingPhotoBase64 || undefined,
+      remove_photo: state.removePhotoPending || undefined,
     };
 
     try {
@@ -1383,6 +1513,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       state.isEditFormDirty = false;
+      resetFormAvatar(null);
       dismissConflictBanner();
       closeModal(elements.modalPatient);
 
@@ -1465,6 +1596,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Clear previous conflict warnings
       dismissConflictBanner();
+
+      // Populate avatar in details modal header
+      const firstChar = (p.full_name || '').trim().charAt(0) || 'م';
+      const fallbackClass = p.gender === 'female' ? 'avatar-female' : 'avatar-male';
+      if (elements.detailAvatarFallback) {
+        elements.detailAvatarFallback.textContent = firstChar;
+        elements.detailAvatarFallback.className = `patient-avatar-fallback ${fallbackClass}`;
+      }
+      if (p.photo_url) {
+        if (elements.detailAvatarImg) {
+          elements.detailAvatarImg.src = p.photo_url;
+          elements.detailAvatarImg.classList.remove('hidden');
+        }
+        if (elements.detailAvatarFallback) {
+          elements.detailAvatarFallback.classList.add('hidden');
+        }
+        if (elements.detailAvatarWrap) {
+          elements.detailAvatarWrap.style.cursor = 'pointer';
+          elements.detailAvatarWrap.title = 'انقر لتكبير صورة المريض';
+        }
+      } else {
+        if (elements.detailAvatarImg) {
+          elements.detailAvatarImg.src = '';
+          elements.detailAvatarImg.classList.add('hidden');
+        }
+        if (elements.detailAvatarFallback) {
+          elements.detailAvatarFallback.classList.remove('hidden');
+        }
+        if (elements.detailAvatarWrap) {
+          elements.detailAvatarWrap.style.cursor = 'default';
+          elements.detailAvatarWrap.title = 'لا توجد صورة شخصية للمريض (انقر على أيقونة الكاميرا لإضافة صورة)';
+        }
+      }
 
       // Populate header details
       elements.detailFileNumber.textContent = p.file_number;
@@ -1556,6 +1720,92 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.btnDetailsAddAnother.addEventListener('click', () => {
       closeModal(elements.modalPatientDetails);
       elements.btnAddPatient.click();
+    });
+  }
+
+  // Lightbox and detail avatar event listeners
+  if (elements.detailAvatarWrap) {
+    elements.detailAvatarWrap.addEventListener('click', () => {
+      const p = state.selectedPatientDetails;
+      if (p && p.photo_url) {
+        if (elements.photoViewerImg) elements.photoViewerImg.src = p.photo_url;
+        if (elements.photoViewerTitle) elements.photoViewerTitle.textContent = `صورة المريض - ${p.full_name}`;
+        openModal(elements.modalPhotoViewer);
+      }
+    });
+  }
+
+  if (elements.btnChangeDetailPhoto && elements.inputDetailPhoto) {
+    elements.btnChangeDetailPhoto.addEventListener('click', (e) => {
+      e.stopPropagation();
+      elements.inputDetailPhoto.value = '';
+      elements.inputDetailPhoto.click();
+    });
+
+    elements.inputDetailPhoto.addEventListener('change', async () => {
+      const file = elements.inputDetailPhoto.files && elements.inputDetailPhoto.files[0];
+      if (!file || !state.selectedPatientId) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('يرجى اختيار ملف صورة صالح (JPG, PNG, WebP)', 'warning');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('حجم الصورة كبير جداً، الحد الأقصى 10 ميجابايت', 'warning');
+        return;
+      }
+
+      try {
+        const formData = new FormData();
+        formData.append('photo', file);
+
+        showToast('جاري تحديث صورة المريض...', 'info');
+        const res = await fetch(`/api/patients/${state.selectedPatientId}/photo`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'فشل تحديث الصورة', 'danger');
+          return;
+        }
+
+        showToast('تم تحديث صورة المريض بنجاح', 'success');
+        openPatientDetails(state.selectedPatientId, false);
+        loadPatients();
+      } catch (err) {
+        console.error(err);
+        showToast('حدث خطأ أثناء رفع الصورة', 'danger');
+      }
+    });
+  }
+
+  if (elements.btnDeletePhotoFromViewer) {
+    elements.btnDeletePhotoFromViewer.addEventListener('click', async () => {
+      if (!state.selectedPatientId) return;
+      const confirmDelete = confirm('هل أنت متأكد من رغبتك في حذف صورة هذا المريض؟');
+      if (!confirmDelete) return;
+
+      try {
+        const res = await fetch(`/api/patients/${state.selectedPatientId}/photo`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'فشل حذف الصورة', 'danger');
+          return;
+        }
+
+        showToast('تم حذف صورة المريض بنجاح', 'success');
+        closeModal(elements.modalPhotoViewer);
+        openPatientDetails(state.selectedPatientId, false);
+        loadPatients();
+      } catch (err) {
+        console.error(err);
+        showToast('حدث خطأ أثناء حذف الصورة', 'danger');
+      }
     });
   }
 
@@ -1966,9 +2216,12 @@ document.addEventListener('DOMContentLoaded', () => {
       </head>
       <body>
         <div class="card-header">
-          <div>
-            <h1 class="card-title">كارت بيانات المريض الطبي</h1>
-            <div class="clinic-sub">منظومة سجلات العيادة الطبية</div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            ${p.photo_url ? `<img src="${p.photo_url}" style="width: 72px; height: 72px; border-radius: 8px; object-fit: cover; border: 2px solid #0284c7;" alt="صورة المريض">` : ''}
+            <div>
+              <h1 class="card-title">كارت بيانات المريض الطبي</h1>
+              <div class="clinic-sub">منظومة سجلات العيادة الطبية</div>
+            </div>
           </div>
           <div class="file-num-badge">${p.file_number}</div>
         </div>

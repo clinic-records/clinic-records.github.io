@@ -499,6 +499,36 @@
       </div>
       <form id="form-patient">
         <input type="hidden" id="patient-form-id">
+
+        <!-- Patient Profile Photo Uploader Section -->
+        <div class="form-avatar-picker-section">
+          <div class="form-avatar-preview-wrap" id="form-avatar-preview-wrap">
+            <div id="form-avatar-placeholder" class="patient-avatar-placeholder">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <img id="form-avatar-img" class="form-avatar-img hidden" alt="صورة المريض">
+          </div>
+          <div class="form-avatar-controls">
+            <div class="form-avatar-buttons">
+              <label for="input-patient-photo" class="btn btn-sm btn-outline btn-photo-upload" title="اختيار أو التقاط صورة">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span id="btn-photo-upload-label">اختيار صورة المريض</span>
+              </label>
+              <input type="file" id="input-patient-photo" accept="image/*" class="hidden">
+              <button type="button" id="btn-remove-photo" class="btn btn-sm btn-danger-outline hidden" title="إزالة الصورة">
+                إزالة الصورة
+              </button>
+            </div>
+            <span class="photo-hint-text">صورة شخصية اختيارية (JPG, PNG, WebP) تظهر في الملف والكشوفات</span>
+          </div>
+        </div>
+
         <div class="form-grid">
           <div class="form-group full-width">
             <label for="input-full-name">اسم المريض <span class="required">*</span></label>
@@ -557,9 +587,22 @@
     <div class="modal-box modal-box-large">
       <div class="modal-header patient-detail-header">
         <div class="patient-title-wrap">
-          <span class="file-code-badge" id="detail-file-number">CL-000000</span>
-          <div>
-            <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="patient-detail-avatar-container" id="patient-detail-avatar-container">
+            <div class="patient-avatar-wrap lg" id="detail-avatar-wrap" title="انقر لتكبير الصورة">
+              <span class="patient-avatar-fallback avatar-male" id="detail-avatar-fallback">م</span>
+              <img id="detail-avatar-img" class="patient-avatar-img hidden" alt="صورة المريض">
+            </div>
+            <button type="button" class="btn-avatar-edit-badge" id="btn-change-detail-photo" title="تغيير أو إضافة صورة المريض">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+            <input type="file" id="input-detail-photo" accept="image/*" class="hidden">
+          </div>
+          <div class="patient-title-info-wrap">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span class="file-code-badge" id="detail-file-number">CL-000000</span>
               <h2 id="detail-full-name">اسم المريض</h2>
               <span id="detail-viewers-badge" class="concurrent-viewers-tag hidden"
                 title="هذا الملف مفتوح حالياً على جهاز آخر">
@@ -855,6 +898,27 @@
             <div class="backup-loading-state">جاري تحميل قائمة النسخ...</div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Photo Lightbox Modal -->
+  <div id="modal-photo-viewer" class="modal-backdrop hidden">
+    <div class="modal-box modal-photo-box">
+      <div class="modal-header">
+        <h3 id="photo-viewer-title">صورة المريض</h3>
+        <button class="modal-close-btn" data-close-modal="modal-photo-viewer">✕</button>
+      </div>
+      <div class="photo-viewer-body">
+        <img id="photo-viewer-img" src="" alt="صورة المريض">
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" class="btn btn-sm btn-danger-outline" id="btn-delete-photo-from-viewer">
+          إزالة الصورة
+        </button>
+        <button type="button" class="btn btn-sm btn-outline" data-close-modal="modal-photo-viewer">
+          إغلاق
+        </button>
       </div>
     </div>
   </div>

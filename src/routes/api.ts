@@ -12,6 +12,9 @@ import {
   getVideoFilePath,
   deleteVideoFile,
   deletePatientDirectory,
+  getPatientPhotoPath,
+  savePatientPhoto,
+  deletePatientPhoto,
 } from '../utils/storage.js';
 import { getNetworkDetails } from '../utils/network.js';
 import { realtimeManager } from '../utils/realtime.js';
@@ -231,6 +234,7 @@ export function registerApiRoutes(
       age?: number;
       diagnosis?: string;
       notes?: string;
+      photo_base64?: string;
     };
   }>, reply) => {
     const body = req.body;
@@ -243,6 +247,21 @@ export function registerApiRoutes(
 
     try {
       const patient = db.createPatient(body);
+
+      // Handle photo_base64 if provided
+      if (body.photo_base64 && typeof body.photo_base64 === 'string') {
+        const matches = body.photo_base64.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+        if (matches) {
+          const rawExt = matches[1].toLowerCase() === 'jpeg' ? 'jpg' : matches[1].toLowerCase();
+          const ext = rawExt === 'png' || rawExt === 'webp' ? `.${rawExt}` : '.jpg';
+          const buf = Buffer.from(matches[2], 'base64');
+          savePatientPhoto(config.storagePath, patient.id, buf, ext);
+          const photoUrl = `/api/patients/${patient.id}/photo?t=${Date.now()}`;
+          db.updatePatientPhoto(patient.id, photoUrl);
+          patient.photo_url = photoUrl;
+        }
+      }
+
       realtimeManager.broadcastPatientsListChanged();
       return reply.status(201).send(patient);
     } catch (err: any) {
@@ -281,6 +300,9 @@ export function registerApiRoutes(
       age?: number;
       diagnosis?: string;
       notes?: string;
+      photo_url?: string | null;
+      photo_base64?: string;
+      remove_photo?: boolean;
     };
   }>, reply) => {
     const id = parseInt(req.params.id, 10);
@@ -288,6 +310,20 @@ export function registerApiRoutes(
     if (isNaN(id)) return reply.status(400).send({ error: 'Invalid patient ID' });
 
     try {
+      if (req.body.remove_photo) {
+        deletePatientPhoto(config.storagePath, id);
+        req.body.photo_url = null;
+      } else if (req.body.photo_base64 && typeof req.body.photo_base64 === 'string') {
+        const matches = req.body.photo_base64.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+        if (matches) {
+          const rawExt = matches[1].toLowerCase() === 'jpeg' ? 'jpg' : matches[1].toLowerCase();
+          const ext = rawExt === 'png' || rawExt === 'webp' ? `.${rawExt}` : '.jpg';
+          const buf = Buffer.from(matches[2], 'base64');
+          savePatientPhoto(config.storagePath, id, buf, ext);
+          req.body.photo_url = `/api/patients/${id}/photo?t=${Date.now()}`;
+        }
+      }
+
       const updated = db.updatePatient(id, req.body);
       if (!updated) return reply.status(404).send({ error: 'Patient not found' });
 
@@ -302,6 +338,82 @@ export function registerApiRoutes(
       app.log.error(err);
       return reply.status(500).send({ error: 'Failed to update patient record' });
     }
+  });
+
+  // 9b. Get patient photo
+  app.get('/api/patients/:id/photo', async (req: FastifyRequest<{
+    Params: { id: string };
+  }>, reply) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return reply.status(400).send({ error: 'Invalid patient ID' });
+
+    const photoPath = getPatientPhotoPath(config.storagePath, id);
+    if (!photoPath || !fs.existsSync(photoPath)) {
+      return reply.status(404).send({ error: 'Photo not found' });
+    }
+
+    const ext = path.extname(photoPath).toLowerCase();
+    const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+    reply.header('Content-Type', mimeType);
+    reply.header('Cache-Control', 'public, max-age=86400');
+    return reply.send(fs.createReadStream(photoPath));
+  });
+
+  // 9c. Upload patient photo (multipart or json base64)
+  app.post('/api/patients/:id/photo', async (req: FastifyRequest<{
+    Params: { id: string };
+    Querystring: { clientId?: string };
+    Body?: { photo_base64?: string };
+  }>, reply) => {
+    const id = parseInt(req.params.id, 10);
+    const clientId = req.query.clientId;
+    if (isNaN(id)) return reply.status(400).send({ error: 'Invalid patient ID' });
+
+    const patient = db.getPatientById(id);
+    if (!patient) return reply.status(404).send({ error: 'Patient not found' });
+
+    if (req.isMultipart()) {
+      const data = await req.file();
+      if (!data) return reply.status(400).send({ error: 'No file uploaded' });
+      const buffer = await data.toBuffer();
+      const ext = path.extname(data.filename).toLowerCase() || '.jpg';
+      savePatientPhoto(config.storagePath, id, buffer, ext);
+    } else if (req.body?.photo_base64) {
+      const matches = req.body.photo_base64.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+      if (!matches) return reply.status(400).send({ error: 'Invalid image base64 data' });
+      const rawExt = matches[1].toLowerCase() === 'jpeg' ? 'jpg' : matches[1].toLowerCase();
+      const ext = rawExt === 'png' || rawExt === 'webp' ? `.${rawExt}` : '.jpg';
+      const buffer = Buffer.from(matches[2], 'base64');
+      savePatientPhoto(config.storagePath, id, buffer, ext);
+    } else {
+      return reply.status(400).send({ error: 'No image provided' });
+    }
+
+    const photoUrl = `/api/patients/${id}/photo?t=${Date.now()}`;
+    db.updatePatientPhoto(id, photoUrl);
+
+    realtimeManager.broadcastPatientUpdate(id, clientId, 'details');
+    realtimeManager.broadcastPatientsListChanged();
+
+    return reply.send({ success: true, photo_url: photoUrl });
+  });
+
+  // 9d. Delete patient photo
+  app.delete('/api/patients/:id/photo', async (req: FastifyRequest<{
+    Params: { id: string };
+    Querystring: { clientId?: string };
+  }>, reply) => {
+    const id = parseInt(req.params.id, 10);
+    const clientId = req.query.clientId;
+    if (isNaN(id)) return reply.status(400).send({ error: 'Invalid patient ID' });
+
+    deletePatientPhoto(config.storagePath, id);
+    db.updatePatientPhoto(id, null);
+
+    realtimeManager.broadcastPatientUpdate(id, clientId, 'details');
+    realtimeManager.broadcastPatientsListChanged();
+
+    return reply.send({ success: true, message: 'Photo deleted successfully' });
   });
 
   // 10. Move patient to recycle bin (soft delete)

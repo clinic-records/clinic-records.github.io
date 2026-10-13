@@ -100,3 +100,52 @@ export function deletePatientDirectory(baseStoragePath: string, patientId: numbe
   }
   return false;
 }
+
+export function getPatientPhotoPath(baseStoragePath: string, patientId: number): string | null {
+  const { patientDir } = ensurePatientDirs(baseStoragePath, patientId);
+  const exts = ['.jpg', '.jpeg', '.png', '.webp'];
+  for (const ext of exts) {
+    const p = path.join(patientDir, `photo${ext}`);
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+export function savePatientPhoto(
+  baseStoragePath: string,
+  patientId: number,
+  buffer: Buffer,
+  ext: string = '.jpg'
+): string {
+  const { patientDir } = ensurePatientDirs(baseStoragePath, patientId);
+  const exts = ['.jpg', '.jpeg', '.png', '.webp'];
+  for (const oldExt of exts) {
+    const oldPath = path.join(patientDir, `photo${oldExt}`);
+    if (fs.existsSync(oldPath)) {
+      try {
+        fs.unlinkSync(oldPath);
+      } catch { }
+    }
+  }
+  const cleanExt = ext.startsWith('.') ? ext : `.${ext}`;
+  const photoPath = path.join(patientDir, `photo${cleanExt}`);
+  fs.writeFileSync(photoPath, buffer);
+  return photoPath;
+}
+
+export function deletePatientPhoto(baseStoragePath: string, patientId: number): boolean {
+  const { patientDir } = ensurePatientDirs(baseStoragePath, patientId);
+  const exts = ['.jpg', '.jpeg', '.png', '.webp'];
+  let deleted = false;
+  for (const ext of exts) {
+    const p = path.join(patientDir, `photo${ext}`);
+    if (fs.existsSync(p)) {
+      try {
+        fs.unlinkSync(p);
+        deleted = true;
+      } catch { }
+    }
+  }
+  return deleted;
+}
+

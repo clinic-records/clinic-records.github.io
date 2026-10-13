@@ -16,6 +16,7 @@ export interface Patient {
   age: number | null;
   diagnosis: string | null;
   notes: string | null;
+  photo_url?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
@@ -115,13 +116,18 @@ export class ClinicDatabase {
       CREATE INDEX IF NOT EXISTS idx_patients_created_at ON patients(created_at DESC);
     `);
 
-    // Ensure deleted_at column exists if table was previously created without it
+    // Ensure deleted_at and photo_url columns exist if table was previously created without them
     const tableInfo = this.db.pragma('table_info(patients)') as Array<{ name: string }>;
     const hasDeletedAt = tableInfo.some((col) => col.name === 'deleted_at');
     if (!hasDeletedAt) {
       this.db.exec(`ALTER TABLE patients ADD COLUMN deleted_at DATETIME DEFAULT NULL;`);
     }
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_patients_deleted_at ON patients(deleted_at);`);
+
+    const hasPhotoUrl = tableInfo.some((col) => col.name === 'photo_url');
+    if (!hasPhotoUrl) {
+      this.db.exec(`ALTER TABLE patients ADD COLUMN photo_url TEXT DEFAULT NULL;`);
+    }
 
     this.db.exec(`
       -- Four fixed patient documents table
@@ -210,13 +216,14 @@ export class ClinicDatabase {
     age?: number;
     diagnosis?: string;
     notes?: string;
+    photo_url?: string | null;
   }): Patient {
     const fileNumber = data.file_number?.trim() || this.generateNextFileNumber();
     const normalizedName = normalizeArabic(data.full_name);
 
     const insertStmt = this.db.prepare(`
-      INSERT INTO patients (file_number, full_name, normalized_name, phone, national_id, gender, birth_date, age, diagnosis, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO patients (file_number, full_name, normalized_name, phone, national_id, gender, birth_date, age, diagnosis, notes, photo_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = insertStmt.run(
@@ -229,7 +236,8 @@ export class ClinicDatabase {
       data.birth_date || null,
       data.age || null,
       data.diagnosis?.trim() || null,
-      data.notes?.trim() || null
+      data.notes?.trim() || null,
+      data.photo_url || null
     );
 
     const patientId = Number(result.lastInsertRowid);
@@ -255,6 +263,7 @@ export class ClinicDatabase {
       age?: number;
       diagnosis?: string;
       notes?: string;
+      photo_url?: string | null;
     }
   ): Patient | null {
     const existing = this.getPatientById(id);
@@ -278,6 +287,7 @@ export class ClinicDatabase {
           age = ?,
           diagnosis = ?,
           notes = ?,
+          photo_url = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `
@@ -293,10 +303,21 @@ export class ClinicDatabase {
         data.age !== undefined ? data.age : existing.age,
         data.diagnosis !== undefined ? data.diagnosis.trim() || null : existing.diagnosis,
         data.notes !== undefined ? data.notes.trim() || null : existing.notes,
+        data.photo_url !== undefined ? data.photo_url : existing.photo_url,
         id
       );
 
     return this.getPatientById(id);
+  }
+
+  /**
+   * Updates only patient photo URL
+   */
+  public updatePatientPhoto(id: number, photoUrl: string | null): boolean {
+    const result = this.db
+      .prepare('UPDATE patients SET photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(photoUrl, id);
+    return result.changes > 0;
   }
 
   /**
