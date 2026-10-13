@@ -17,7 +17,9 @@ rm -rf node-v20.18.0-linux-x64
 cp -r dist "$PKG_DIR/"
 cp -r public "$PKG_DIR/"
 cp -r node_modules "$PKG_DIR/"
-cp package.json start.sh INSTRUCTIONS.txt README.md "$PKG_DIR/"
+cp package.json start.sh README.md "$PKG_DIR/"
+cp scripts/instructions/linux.txt "$PKG_DIR/تعليمات_التشغيل_لينكس.txt"
+cp scripts/instructions/linux.txt "$PKG_DIR/INSTRUCTIONS.txt"
 chmod +x "$PKG_DIR/start.sh"
 
 touch "$PKG_DIR/data/.gitkeep"

@@ -68,7 +68,8 @@ EOF
 chmod +x "$MACOS_BIN/Clinic Records"
 
 # Copy instructions and debug launcher
-cp INSTRUCTIONS.txt "$PKG_NAME/"
+cp scripts/instructions/macos.txt "$PKG_NAME/تعليمات_التشغيل_ماك.txt"
+cp scripts/instructions/macos.txt "$PKG_NAME/INSTRUCTIONS.txt"
 cp start.command "$PKG_NAME/start-debug.command"
 chmod +x "$PKG_NAME/start-debug.command"
 
