@@ -2167,6 +2167,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ==========================================================================
+     Software Update Checker
+     ========================================================================== */
+
+  async function checkForAppUpdates() {
+    try {
+      const res = await fetch('/api/system/update');
+      const data = await res.json();
+      if (data && data.hasUpdate) {
+        const badge = document.getElementById('update-available-badge');
+        const text = document.getElementById('update-version-text');
+        if (badge && text) {
+          text.textContent = `تحديث ${data.latestVersion} متاح`;
+          badge.style.display = 'inline-flex';
+          badge.onclick = () => {
+            showToast(`يتوفر إصدار أحدث (${data.latestVersion})! جارٍ فتح صفحة التحميل...`, 'info');
+            if (data.htmlUrl) window.open(data.htmlUrl, '_blank');
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /* ==========================================================================
      Global Handlers Exposure
      ========================================================================== */
 
@@ -2178,6 +2203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     deleteVideo,
     dismissConflictBanner,
     forceRefreshPatient,
+    checkForAppUpdates,
   };
 
   // Initialize
@@ -2186,4 +2212,5 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStats();
   loadPatients();
   checkUrlForPatient();
+  checkForAppUpdates();
 });

@@ -75,11 +75,89 @@ export function registerApiRoutes(
     });
   });
 
-  // 4. Network details and QR code
+  // 4. Network details, QR code, and companion live stats
   app.get('/api/network', async (_req, reply) => {
     const portNumber = typeof currentPort === 'function' ? currentPort() : currentPort;
     const details = await getNetworkDetails(portNumber);
-    return reply.send(details);
+    const onlineCount = realtimeManager.getOnlineCount();
+    const stats = db.getStats();
+
+    let latestBackupTime: string | null = null;
+    try {
+      if (fs.existsSync(config.backupPath)) {
+        const files = fs.readdirSync(config.backupPath).filter(f => f.endsWith('.db') || f.endsWith('.zip'));
+        let maxMtime = 0;
+        for (const file of files) {
+          const stat = fs.statSync(path.join(config.backupPath, file));
+          if (stat.mtimeMs > maxMtime) {
+            maxMtime = stat.mtimeMs;
+            latestBackupTime = stat.mtime.toISOString();
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return reply.send({
+      ...details,
+      onlineCount,
+      stats: {
+        totalPatients: stats.totalPatients,
+        todayPatients: stats.todayPatients,
+        totalVideos: stats.totalVideos,
+        totalDocuments: stats.totalDocuments,
+      },
+      latestBackupTime,
+      backupPath: config.backupPath,
+    });
+  });
+
+  // 4b. Check for software updates via GitHub Releases
+  app.get('/api/system/update', async (_req, reply) => {
+    const currentVersion = 'v1.0.4';
+    try {
+      const response = await fetch('https://api.github.com/repos/clinic-records/clinic-records.github.io/releases/latest', {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'ClinicRecords-App',
+        },
+      });
+
+      if (!response.ok) {
+        return reply.send({ hasUpdate: false, currentVersion, error: 'Could not fetch updates' });
+      }
+
+      const release: any = await response.json();
+      const latestVersion = release.tag_name || currentVersion;
+      const hasUpdate = latestVersion.localeCompare(currentVersion, undefined, { numeric: true }) > 0;
+
+      return reply.send({
+        hasUpdate,
+        currentVersion,
+        latestVersion,
+        releaseName: release.name,
+        releaseNotes: release.body,
+        publishedAt: release.published_at,
+        htmlUrl: release.html_url,
+      });
+    } catch (err: any) {
+      return reply.send({ hasUpdate: false, currentVersion, error: err?.message || 'Update check failed' });
+    }
+  });
+
+  // 4c. Open backups folder in native OS file manager
+  app.post('/api/system/open-backups-folder', async (_req, reply) => {
+    try {
+      if (!fs.existsSync(config.backupPath)) {
+        fs.mkdirSync(config.backupPath, { recursive: true });
+      }
+      const openLib = (await import('open')).default;
+      await openLib(config.backupPath);
+      return reply.send({ success: true });
+    } catch (err: any) {
+      return reply.status(500).send({ error: err?.message || 'Failed to open directory' });
+    }
   });
 
   // 4b. Dynamic QR Code generator

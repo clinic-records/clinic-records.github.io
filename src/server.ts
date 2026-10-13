@@ -111,8 +111,9 @@ async function bootstrap() {
 
     console.log('=============================================================\n');
 
-    // Auto open the LAN URL in browser (NEVER localhost)
-    if (config.autoOpenBrowser) {
+    // Auto open the LAN URL in browser (only if launched standalone, not from companion app)
+    const isCompanion = process.env.LAUNCHED_BY_COMPANION === 'true' || process.env.LAUNCHED_BY_COMPANION === '1';
+    if (config.autoOpenBrowser && !isCompanion) {
       setTimeout(() => {
         open(netDetails.lanUrl).catch(() => {
           // ignore if headless
