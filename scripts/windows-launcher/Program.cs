@@ -546,6 +546,7 @@ namespace ClinicRecordsLauncher
         {
             while (isServerRunning)
             {
+                bool hadError = false;
                 try
                 {
                     using (HttpClient client = new HttpClient())
@@ -586,6 +587,11 @@ namespace ClinicRecordsLauncher
                     }
                 }
                 catch
+                {
+                    hadError = true;
+                }
+
+                if (hadError)
                 {
                     if (!isServerRunning) break;
                     await Task.Delay(2500);
@@ -645,7 +651,7 @@ namespace ClinicRecordsLauncher
                             }
 
                             // Start real-time SSE listener for instant zero-latency UI updates
-                            Task.Run(async () => await StartRealtimeListener());
+                            var _realtimeTask = Task.Run(async () => await StartRealtimeListener());
 
                             // Open browser EXACTLY once on initial startup
                             if (!hasOpenedBrowserThisRun)
