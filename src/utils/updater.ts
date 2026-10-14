@@ -160,29 +160,40 @@ class SystemUpdater {
         const platform = process.platform;
         const arch = process.arch;
 
+        const isMac = (name: string) => name.includes('macos') || name.includes('darwin');
+        const isWin = (name: string) => name.includes('windows') || name.includes('win32');
+        const isLinux = (name: string) => name.includes('linux');
+
         if (platform === 'win32') {
-          matchedAsset = release.assets.find((a: any) =>
-            a.name.toLowerCase().endsWith('windows-x64.zip')
-          );
+          matchedAsset = release.assets.find((a: any) => {
+            const n = a.name.toLowerCase();
+            return isWin(n) && (n.includes('x64') || n.endsWith('.zip'));
+          });
         } else if (platform === 'darwin') {
           if (arch === 'arm64') {
-            matchedAsset = release.assets.find((a: any) =>
-              a.name.toLowerCase().includes('applesilicon') || a.name.toLowerCase().includes('arm64')
-            );
+            matchedAsset = release.assets.find((a: any) => {
+              const n = a.name.toLowerCase();
+              return isMac(n) && (n.includes('applesilicon') || n.includes('arm64'));
+            });
           } else {
-            matchedAsset = release.assets.find((a: any) =>
-              a.name.toLowerCase().includes('intel') || a.name.toLowerCase().includes('x64')
-            );
+            matchedAsset = release.assets.find((a: any) => {
+              const n = a.name.toLowerCase();
+              return isMac(n) && (n.includes('intel') || n.includes('x64'));
+            });
+          }
+          // Safe fallback for mac only
+          if (!matchedAsset) {
+            matchedAsset = release.assets.find((a: any) => isMac(a.name.toLowerCase()) && a.name.endsWith('.zip'));
           }
         } else if (platform === 'linux') {
-          matchedAsset = release.assets.find((a: any) =>
-            a.name.toLowerCase().endsWith('linux-x64.tar.gz')
-          );
+          matchedAsset = release.assets.find((a: any) => {
+            const n = a.name.toLowerCase();
+            return isLinux(n) && (n.endsWith('.tar.gz') || n.endsWith('.tgz'));
+          });
         }
 
-        // Fallback to any zip if specific platform name pattern changed
-        if (!matchedAsset && release.assets.length > 0) {
-          matchedAsset = release.assets[0];
+        if (!matchedAsset) {
+          console.warn(`[Updater] No compatible release asset found for platform ${platform} (${arch})`);
         }
       }
 
@@ -249,7 +260,7 @@ class SystemUpdater {
         `pre_update_backup_${Date.now()}.db`
       );
       try {
-        db.backupDatabase(safetyBackupFile);
+        await db.backupDatabase(safetyBackupFile);
       } catch (e) {
         console.warn('Pre-update backup warning:', e);
       }

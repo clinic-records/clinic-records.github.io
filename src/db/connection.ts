@@ -17,6 +17,7 @@ export function initDatabaseSchema(db: Database): void {
   // High-performance PRAGMAs for massive scale and concurrency
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = NORMAL');
+  db.pragma('busy_timeout = 10000'); // 10s wait for lock across concurrent LAN devices
   db.pragma('foreign_keys = ON');
   db.pragma('temp_store = MEMORY');
   db.pragma('cache_size = -64000'); // 64MB Cache
