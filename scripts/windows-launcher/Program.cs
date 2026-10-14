@@ -542,6 +542,50 @@ namespace ClinicRecordsLauncher
             catch { }
         }
 
+        private async Task StartRealtimeListener()
+        {
+            while (isServerRunning)
+            {
+                try
+                {
+                    using (HttpClient client = new HttpClient())
+                    {
+                        client.Timeout = TimeSpan.FromHours(2);
+                        string url = "http://127.0.0.1:" + currentPort + "/api/realtime?clientId=companion_win&role=observer";
+                        using (var stream = await client.GetStreamAsync(url))
+                        using (var reader = new StreamReader(stream))
+                        {
+                            while (isServerRunning && !reader.EndOfStream)
+                            {
+                                string line = await reader.ReadLineAsync();
+                                if (string.IsNullOrEmpty(line) || !line.StartsWith("data:")) continue;
+
+                                string json = line.Substring(5).Trim();
+                                var presenceMatch = Regex.Match(json, "\"onlineUsers\"\\s*:\\s*(\\d+)");
+                                if (presenceMatch.Success && int.TryParse(presenceMatch.Groups[1].Value, out int count))
+                                {
+                                    onlineCount = count;
+                                    this.Invoke((MethodInvoker)delegate {
+                                        lblOnlineCount.Text = "👥 المتصلون: " + onlineCount;
+                                    });
+                                }
+
+                                if (json.Contains("patients_list_changed") || json.Contains("patient_updated"))
+                                {
+                                    await PollServerStats();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    if (!isServerRunning) break;
+                    await Task.Delay(2500);
+                }
+            }
+        }
+
         private async Task PollServerNetwork()
         {
             using (HttpClient client = new HttpClient())
@@ -592,6 +636,9 @@ namespace ClinicRecordsLauncher
                                     });
                                 }
                             }
+
+                            // Start real-time SSE listener for instant zero-latency UI updates
+                            _ = Task.Run(StartRealtimeListener);
 
                             // Open browser EXACTLY once on initial startup
                             if (!hasOpenedBrowserThisRun)

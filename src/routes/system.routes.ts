@@ -16,9 +16,10 @@ export function registerSystemRoutes(
 ) {
   // 1. Real-time Server-Sent Events (SSE) connection
   app.get('/api/realtime', (req: FastifyRequest<{
-    Querystring: { clientId?: string };
+    Querystring: { clientId?: string; role?: string };
   }>, reply) => {
     const clientId = req.query.clientId || `client_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const isObserver = req.query.role === 'observer';
     const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
 
     reply.raw.writeHead(200, {
@@ -29,9 +30,9 @@ export function registerSystemRoutes(
       'Access-Control-Allow-Origin': '*',
     });
 
-    reply.raw.write(`data: ${JSON.stringify({ type: 'connected', clientId, onlineUsers: realtimeManager.getOnlineCount() + 1 })}\n\n`);
+    realtimeManager.addClient(clientId, clientIp, reply, isObserver);
 
-    realtimeManager.addClient(clientId, clientIp, reply);
+    reply.raw.write(`data: ${JSON.stringify({ type: 'connected', clientId, onlineUsers: realtimeManager.getOnlineCount() })}\n\n`);
 
     req.raw.on('close', () => {
       realtimeManager.removeClient(clientId);

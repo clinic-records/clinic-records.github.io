@@ -1,6 +1,27 @@
 import Cocoa
 import Foundation
 
+class SSEStreamDelegate: NSObject, URLSessionDataDelegate {
+    var onLine: ((String) -> Void)?
+    private var buffer = ""
+    
+    init(onLine: @escaping (String) -> Void) {
+        self.onLine = onLine
+    }
+    
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        guard let text = String(data: data, encoding: .utf8) else { return }
+        buffer += text
+        while let range = buffer.range(of: "\n") {
+            let line = String(buffer[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            buffer.removeSubrange(...range.lowerBound)
+            if !line.isEmpty {
+                onLine?(line)
+            }
+        }
+    }
+}
+
 class ServerManager {
     static let shared = ServerManager()
     
@@ -22,6 +43,8 @@ class ServerManager {
     
     var onStatusChanged: (() -> Void)?
     private var pollTimer: Timer?
+    private var sseSession: URLSession?
+    private var sseTask: URLSessionDataTask?
     
     func startServer() {
         guard process == nil else { return }
@@ -82,6 +105,7 @@ class ServerManager {
     
     func stopServer() {
         stopPeriodicPolling()
+        stopRealtimeListener()
         netService?.stop()
         netService = nil
         guard let proc = process else { return }
@@ -111,6 +135,54 @@ class ServerManager {
     private func stopPeriodicPolling() {
         pollTimer?.invalidate()
         pollTimer = nil
+    }
+    
+    private func startRealtimeListener() {
+        stopRealtimeListener()
+        guard isRunning else { return }
+        
+        let urlStr = "http://127.0.0.1:\(currentPort)/api/realtime?clientId=companion_macos_\(ProcessInfo.processInfo.processIdentifier)&role=observer"
+        guard let url = URL(string: urlStr) else { return }
+        
+        let delegate = SSEStreamDelegate { [weak self] line in
+            self?.handleSSELine(line)
+        }
+        
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = TimeInterval(3600)
+        config.timeoutIntervalForResource = TimeInterval(86400)
+        
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        let task = session.dataTask(with: url)
+        task.resume()
+        
+        self.sseSession = session
+        self.sseTask = task
+    }
+    
+    private func stopRealtimeListener() {
+        sseTask?.cancel()
+        sseTask = nil
+        sseSession?.invalidateAndCancel()
+        sseSession = nil
+    }
+    
+    private func handleSSELine(_ line: String) {
+        guard line.hasPrefix("data:") else { return }
+        let jsonStr = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+        guard let data = jsonStr.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        
+        if let type = json["type"] as? String {
+            if (type == "presence" || type == "connected"), let count = json["onlineUsers"] as? Int {
+                DispatchQueue.main.async {
+                    self.onlineCount = count
+                    self.onStatusChanged?()
+                }
+            } else if type == "patients_list_changed" || type == "patient_updated" {
+                fetchServerStats()
+            }
+        }
     }
     
     private func fetchServerStats() {
@@ -179,6 +251,7 @@ class ServerManager {
                         self?.latestBackupTime = backup
                     }
                     self?.onStatusChanged?()
+                    self?.startRealtimeListener()
                     
                     // Open browser EXACTLY once on startup
                     if !(self?.hasOpenedBrowserThisRun ?? true) {
