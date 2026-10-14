@@ -574,6 +574,12 @@ namespace ClinicRecordsLauncher
                                 {
                                     await PollServerStats();
                                 }
+                                if (json.Contains("server_updating"))
+                                {
+                                    // Update initiated from web frontend! Cleanly exit companion app after short delay so runner can replace files
+                                    await Task.Delay(2500);
+                                    ExitApp();
+                                }
                             }
                         }
                     }
@@ -907,6 +913,8 @@ namespace ClinicRecordsLauncher
                                 progressBar.Value = 100;
                                 lblPercent.Text = "100%";
                                 lblStatus.Text = "✅ تم تجهيز التحديث بنجاح! سيتم إغلاق البرنامج وإعادة التشغيل تلقائياً...";
+                                await Task.Delay(1200);
+                                Application.Exit();
                             }
                             else if (st == "error")
                             {

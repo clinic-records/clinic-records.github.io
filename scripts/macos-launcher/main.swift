@@ -181,6 +181,11 @@ class ServerManager {
                 }
             } else if type == "patients_list_changed" || type == "patient_updated" {
                 fetchServerStats()
+            } else if type == "server_updating" {
+                // If update was initiated from web frontend, cleanly terminate companion after server prepares payload
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    NSApplication.shared.terminate(nil)
+                }
             }
         }
     }
@@ -809,6 +814,9 @@ class UpdateProgressWindowController: NSWindowController {
                     self?.statusLabel.stringValue = "✅ تم تجهيز التحديث بنجاح! سيتم إغلاق البرنامج وإعادة التشغيل تلقائياً..."
                     self?.progressIndicator.doubleValue = 100
                     self?.percentLabel.stringValue = "100%"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        NSApplication.shared.terminate(nil)
+                    }
                 } else if status == "error" {
                     self?.pollTimer?.invalidate()
                     self?.window?.close()

@@ -436,31 +436,40 @@ class SystemUpdater {
       const runnerBat = path.join(tempBase, 'apply-update.bat');
       const batContent = `@echo off
 chcp 65001 > nul
-timeout /t 2 /nobreak > nul
+timeout /t 1 /nobreak > nul
+
+:: 1. Forcefully terminate running instances to release file locks on Windows
+taskkill /F /IM "Clinic Records.exe" > nul 2>&1
+taskkill /F /IM "node.exe" > nul 2>&1
+timeout /t 1 /nobreak > nul
 
 set "SRC=${payloadDir}"
 set "DEST=${appRootDir}"
 
-set RETRIES=0
-:COPY_LOOP
+:: 2. Replace resources (code and runtime)
 if exist "%SRC%\\resources" (
-    xcopy /E /I /Y /Q "%SRC%\\resources" "%DEST%\\resources\\" > nul 2>&1
+    robocopy "%SRC%\\resources" "%DEST%\\resources" /E /R:3 /W:1 /NP > nul 2>&1
+    if errorlevel 8 (
+        xcopy /E /I /Y /Q "%SRC%\\resources" "%DEST%\\resources\\" > nul 2>&1
+    )
 )
+
+:: 3. Replace companion launcher executable
 if exist "%SRC%\\Clinic Records.exe" (
     copy /Y "%SRC%\\Clinic Records.exe" "%DEST%\\Clinic Records.exe" > nul 2>&1
 )
-if errorlevel 1 (
-    set /a RETRIES+=1
-    if %RETRIES% leq 5 (
-        timeout /t 1 /nobreak > nul
-        goto COPY_LOOP
-    )
-)
+
+:: 4. Replace instructions & debugger
 if exist "%SRC%\\تعليمات_التشغيل.txt" (
     copy /Y "%SRC%\\تعليمات_التشغيل.txt" "%DEST%\\تعليمات_التشغيل.txt" > nul 2>&1
 )
+if exist "%SRC%\\start-debug.bat" (
+    copy /Y "%SRC%\\start-debug.bat" "%DEST%\\start-debug.bat" > nul 2>&1
+)
 
 timeout /t 1 /nobreak > nul
+
+:: 5. Launch brand-new instance
 if exist "%DEST%\\Clinic Records.exe" (
     start "" "%DEST%\\Clinic Records.exe"
 ) else (
@@ -489,21 +498,37 @@ exit
       const destDir = path.dirname(destApp);
 
       const shContent = `#!/bin/bash
-sleep 2
+sleep 1
+
+# 1. Terminate any running Clinic Records app so bundle is completely unlocked
+killall "Clinic Records" 2>/dev/null || true
+sleep 1
+
 SRC="${payloadDir}"
 DEST_APP="${destApp}"
 DEST_DIR="${destDir}"
 
+# 2. Replace app bundle atomically
 if [ -d "$SRC/Clinic Records.app" ]; then
     rm -rf "$DEST_APP"
     cp -R "$SRC/Clinic Records.app" "$DEST_DIR/"
     xattr -dr com.apple.quarantine "$DEST_APP" 2>/dev/null || true
     chmod +x "$DEST_APP/Contents/MacOS/Clinic Records" 2>/dev/null || true
-    chmod +x "$DEST_APP/Contents/Resources/runtime/bin/node" 2>/dev/null || true
+    chmod +x "$DEST_APP/Contents/Resources/app/runtime/bin/node" 2>/dev/null || true
 fi
 
+# 3. Copy instructions & console debugger if included
+if [ -f "$SRC/تعليمات_التشغيل.txt" ]; then
+    cp "$SRC/تعليمات_التشغيل.txt" "$DEST_DIR/" 2>/dev/null || true
+fi
+if [ -f "$SRC/start-debug.command" ]; then
+    cp "$SRC/start-debug.command" "$DEST_DIR/" 2>/dev/null || true
+    chmod +x "$DEST_DIR/start-debug.command" 2>/dev/null || true
+fi
+
+# 4. Launch new instance (-n forces clean fresh instance)
 if [ -d "$DEST_APP" ]; then
-    open -a "$DEST_APP" || open "$DEST_APP"
+    open -n "$DEST_APP" || open "$DEST_APP"
 fi
 exit 0
 `;
@@ -518,7 +543,10 @@ exit 0
     } else {
       const runnerSh = path.join(tempBase, 'apply-update.sh');
       const shContent = `#!/bin/bash
-sleep 2
+sleep 1
+killall "Clinic Records" 2>/dev/null || true
+sleep 1
+
 SRC="${payloadDir}"
 DEST="${appRootDir}"
 
