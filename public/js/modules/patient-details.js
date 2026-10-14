@@ -5,7 +5,7 @@
 import { state, DOC_TITLES } from '../state.js';
 import { api } from '../api.js';
 import { openModal, closeModal } from './modal.js';
-import { formatDate, formatBytes, showToast, escapeHtml } from '../utils.js';
+import { formatDate, formatBytes, showToast, escapeHtml, copyToClipboard } from '../utils.js';
 import { notifyViewingPatient, updateViewersBadge, dismissConflictBanner } from './realtime.js';
 import { renderVideosSection } from './videos.js';
 import { openPhotoCropper } from './cropper.js';
@@ -302,7 +302,7 @@ export function openShareModal(p) {
   const btnCopy = document.getElementById('btn-copy-share-url');
   if (btnCopy) {
     btnCopy.onclick = () => {
-      navigator.clipboard.writeText(directUrl)
+      copyToClipboard(directUrl)
         .then(() => showToast('تم نسخ رابط ملف المريض بنجاح', 'success'))
         .catch(() => showToast('تعذر نسخ الرابط', 'danger'));
     };

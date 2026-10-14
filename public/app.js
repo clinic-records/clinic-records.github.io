@@ -5,7 +5,7 @@
 
 import { state } from './js/state.js';
 import { api } from './js/api.js';
-import { showToast, formatBytes, formatDate } from './js/utils.js';
+import { showToast, formatBytes, formatDate, copyToClipboard } from './js/utils.js';
 import { openModal, closeModal, attemptCloseModal, initModalListeners } from './js/modules/modal.js';
 import { initCropper } from './js/modules/cropper.js';
 import { initRealtimeEvents, dismissConflictBanner } from './js/modules/realtime.js';
@@ -200,19 +200,70 @@ function initClinicApp() {
   elements.btnCopyMdnsUrl?.addEventListener('click', () => {
     const url = state.networkInfo?.mdnsUrl || elements.networkMdnsUrl?.textContent;
     if (url) {
-      navigator.clipboard.writeText(url).then(() => {
-        showToast('تم نسخ رابط الوصول الدائم (clinic.local)');
-      });
+      copyToClipboard(url)
+        .then(() => {
+          showToast('تم نسخ رابط الوصول الدائم (clinic.local) بنجاح');
+        })
+        .catch(() => {
+          showToast('تعذر نسخ الرابط تلقائياً', 'danger');
+        });
     }
   });
 
   elements.btnCopyLanUrl?.addEventListener('click', () => {
-    if (state.networkInfo?.lanUrl) {
-      navigator.clipboard.writeText(state.networkInfo.lanUrl).then(() => {
-        showToast('تم نسخ رابط IP المباشر بنجاح');
-      });
+    const url = state.networkInfo?.lanUrl || elements.networkLanUrl?.textContent;
+    if (url) {
+      copyToClipboard(url)
+        .then(() => {
+          showToast('تم نسخ رابط IP المباشر بنجاح');
+        })
+        .catch(() => {
+          showToast('تعذر نسخ الرابط تلقائياً', 'danger');
+        });
     }
   });
+
+  /* ==========================================================================
+     Zero-Config Progressive mDNS Upgrade:
+     If client accessed via IP (e.g. from QR scan or direct IP typing),
+     probe if http://clinic.local:PORT is reachable on this client device.
+     If reachable (iOS, Mac, Windows with mDNS), smoothly transition to clinic.local!
+     If unreachable (older Android/isolated subnet), remain on IP silently with zero disruption.
+     ========================================================================== */
+  function initMdnsProgressiveUpgrade() {
+    const hostname = (window.location.hostname || '').toLowerCase();
+    // Only probe if currently connected via LAN IP (not already on clinic.local, localhost, or 127.0.0.1)
+    if (!hostname || hostname === 'clinic.local' || hostname === 'localhost' || hostname === '127.0.0.1') {
+      return;
+    }
+
+    // If probed and failed previously in this session, don't retry repeatedly
+    if (sessionStorage.getItem('clinic_mdns_probe_failed') === 'true') {
+      return;
+    }
+
+    const portPart = window.location.port ? `:${window.location.port}` : '';
+    const probeUrl = `${window.location.protocol}//clinic.local${portPart}/api/health`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+    fetch(probeUrl, { mode: 'cors', signal: controller.signal, cache: 'no-store' })
+      .then((res) => {
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const targetUrl = `${window.location.protocol}//clinic.local${portPart}${window.location.pathname}${window.location.search}${window.location.hash}`;
+          window.location.replace(targetUrl);
+        } else {
+          sessionStorage.setItem('clinic_mdns_probe_failed', 'true');
+        }
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        // Client device does not resolve .local (e.g. Android without mDNS). Stay on IP silently!
+        sessionStorage.setItem('clinic_mdns_probe_failed', 'true');
+      });
+  }
 
   /* ==========================================================================
      Statistics
@@ -539,6 +590,7 @@ function initClinicApp() {
   initUpdater(elements);
 
   // Initial Data Loads
+  initMdnsProgressiveUpgrade();
   loadNetworkInfo();
   loadStats();
   loadPatients();

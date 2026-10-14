@@ -8,6 +8,7 @@
 
 import dgram from 'node:dgram';
 import type { Socket } from 'node:dgram';
+import { spawn, type ChildProcess } from 'node:child_process';
 
 const MDNS_MULTICAST_IPV4 = '224.0.0.251';
 const MDNS_PORT = 5353;
@@ -80,6 +81,7 @@ class MdnsService {
   private domain = 'clinic.local';
   private announceTimer: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private darwinProc: ChildProcess | null = null;
 
   public start(port: number, primaryIp: string, domain = 'clinic.local'): void {
     if (this.isRunning) {
@@ -90,6 +92,11 @@ class MdnsService {
     this.currentPort = port;
     this.currentIp = primaryIp;
     this.domain = domain.toLowerCase();
+
+    // On macOS, register proxy record with native mDNSResponder for 100% native resolution
+    if (process.platform === 'darwin' && primaryIp !== '127.0.0.1') {
+      this.startDarwinHelper();
+    }
 
     try {
       this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
@@ -128,11 +135,15 @@ class MdnsService {
   public update(newIp: string, newPort?: number): void {
     this.currentIp = newIp;
     if (newPort) this.currentPort = newPort;
+    if (process.platform === 'darwin' && this.currentIp !== '127.0.0.1') {
+      this.startDarwinHelper();
+    }
     this.announce();
   }
 
   public stop(): void {
     this.isRunning = false;
+    this.stopDarwinHelper();
     if (this.announceTimer) {
       clearInterval(this.announceTimer);
       this.announceTimer = null;
@@ -142,6 +153,30 @@ class MdnsService {
         this.socket.close();
       } catch {}
       this.socket = null;
+    }
+  }
+
+  private startDarwinHelper(): void {
+    if (process.platform !== 'darwin' || this.currentIp === '127.0.0.1') return;
+    this.stopDarwinHelper();
+    try {
+      this.darwinProc = spawn(
+        '/usr/bin/dns-sd',
+        ['-P', 'clinic', '_http._tcp.', 'local.', String(this.currentPort), this.domain, this.currentIp],
+        { stdio: 'ignore' }
+      );
+      this.darwinProc.unref();
+    } catch (e: any) {
+      console.warn('dns-sd helper notice:', e.message);
+    }
+  }
+
+  private stopDarwinHelper(): void {
+    if (this.darwinProc) {
+      try {
+        this.darwinProc.kill();
+      } catch {}
+      this.darwinProc = null;
     }
   }
 

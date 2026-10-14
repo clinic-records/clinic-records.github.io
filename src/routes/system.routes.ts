@@ -62,9 +62,15 @@ export function registerSystemRoutes(
     return reply.send({
       patientId: id,
       viewersCount: viewers.length,
-      viewers,
     });
   });
+
+  // 3.5 Lightweight health check for LAN and mDNS client probing
+  app.get('/api/health', async () => ({
+    status: 'ok',
+    domain: 'clinic.local',
+    timestamp: Date.now(),
+  }));
 
   // 4. Network details, QR code, and companion live stats
   app.get('/api/network', async (_req, reply) => {
