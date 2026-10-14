@@ -562,7 +562,8 @@ namespace ClinicRecordsLauncher
 
                                 string json = line.Substring(5).Trim();
                                 var presenceMatch = Regex.Match(json, "\"onlineUsers\"\\s*:\\s*(\\d+)");
-                                if (presenceMatch.Success && int.TryParse(presenceMatch.Groups[1].Value, out int count))
+                                int count;
+                                if (presenceMatch.Success && int.TryParse(presenceMatch.Groups[1].Value, out count))
                                 {
                                     onlineCount = count;
                                     this.Invoke((MethodInvoker)delegate {
@@ -644,7 +645,7 @@ namespace ClinicRecordsLauncher
                             }
 
                             // Start real-time SSE listener for instant zero-latency UI updates
-                            _ = Task.Run(StartRealtimeListener);
+                            Task.Run(async () => await StartRealtimeListener());
 
                             // Open browser EXACTLY once on initial startup
                             if (!hasOpenedBrowserThisRun)
