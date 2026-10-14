@@ -45,6 +45,26 @@ export function initRealtimeEvents(callbacks = {}) {
       if (data.type === 'server_updating') {
         isServerUpdating = true;
         showServerUpdatingBanner(data.message);
+        
+        // Lock update buttons in any open modal across all active clients
+        const btnStart = document.getElementById('btn-update-start');
+        const btnCancel = document.getElementById('btn-update-cancel');
+        const progressBox = document.getElementById('update-progress-container');
+        const progressStatus = document.getElementById('update-progress-status');
+        if (btnStart) {
+          btnStart.disabled = true;
+          btnStart.textContent = 'جارٍ تطبيق التحديث على الخادم...';
+        }
+        if (btnCancel) {
+          btnCancel.disabled = true;
+        }
+        if (progressBox) {
+          progressBox.classList.remove('hidden');
+        }
+        if (progressStatus) {
+          progressStatus.textContent = data.message || 'جارٍ تطبيق التحديث حالياً وإعادة التشغيل...';
+        }
+        
         pollServerUntilReadyAndReload();
         return;
       }

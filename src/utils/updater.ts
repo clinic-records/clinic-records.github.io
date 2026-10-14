@@ -27,11 +27,49 @@ export interface UpdateStatus {
 }
 
 class SystemUpdater {
+  private isUpdating = false;
   private status: UpdateStatus = {
     status: 'idle',
     progress: 0,
     message: '',
   };
+
+  /**
+   * Synchronously attempts to acquire update lock to eliminate race conditions
+   */
+  public acquireUpdateLock(): boolean {
+    if (this.isUpdating || this.status.status === 'downloading' || this.status.status === 'extracting') {
+      return false;
+    }
+    this.isUpdating = true;
+    this.status = {
+      status: 'downloading',
+      progress: 2,
+      message: 'جارٍ بدء تجهيز التحديث والتحقق من الحزم...',
+    };
+    return true;
+  }
+
+  /**
+   * Releases the update lock in case of failure or completion
+   */
+  public releaseUpdateLock(errorMessage?: string): void {
+    this.isUpdating = false;
+    if (errorMessage) {
+      this.status = {
+        status: 'error',
+        progress: 0,
+        message: 'فشلت عملية التحديث',
+        error: errorMessage,
+      };
+    } else {
+      this.status = {
+        status: 'idle',
+        progress: 0,
+        message: '',
+      };
+    }
+  }
 
   /**
    * Reads current application version dynamically from package.json
@@ -157,12 +195,16 @@ class SystemUpdater {
    * 5. Exits process gracefully
    */
   public async installUpdate(db: ClinicDatabase, config: AppConfig): Promise<{ success: boolean; message: string }> {
-    if (this.status.status === 'downloading' || this.status.status === 'extracting') {
-      throw new Error('عملية التحديث قيد التنفيذ بالفعل.');
+    // If lock was not acquired prior, try acquiring it now
+    if (!this.isUpdating) {
+      if (!this.acquireUpdateLock()) {
+        throw new Error('عملية التحديث قيد التنفيذ بالفعل حالياً بواسطة مستخدم أو جهاز آخر.');
+      }
     }
 
     const check = await this.checkForUpdates();
     if (!check.hasUpdate || !check.assetUrl) {
+      this.releaseUpdateLock('لا يوجد تحديث متاح للتثبيت أو لم يتم العثور على حزمة النظام.');
       throw new Error('لا يوجد تحديث متاح للتثبيت أو لم يتم العثور على حزمة النظام.');
     }
 
@@ -273,12 +315,7 @@ class SystemUpdater {
         message: 'تم تجهيز التحديث بنجاح وجارٍ إعادة التشغيل.',
       };
     } catch (err: any) {
-      this.status = {
-        status: 'error',
-        progress: 0,
-        message: 'فشلت عملية التحديث',
-        error: err?.message || 'Unknown update error',
-      };
+      this.releaseUpdateLock(err?.message || 'Unknown update error');
       throw err;
     }
   }
@@ -293,6 +330,23 @@ class SystemUpdater {
       return path.dirname(cwd);
     }
     return cwd;
+  }
+
+  /**
+   * Resolves the full path to Clinic Records.app on macOS
+   */
+  private getMacAppBundlePath(): string | null {
+    if (process.platform !== 'darwin') return null;
+    const parts = process.execPath.split(path.sep);
+    const appIndex = parts.findIndex((part) => part.endsWith('.app'));
+    if (appIndex !== -1) {
+      return parts.slice(0, appIndex + 1).join(path.sep);
+    }
+    const cwdApp = path.join(process.cwd(), 'Clinic Records.app');
+    if (fs.existsSync(cwdApp)) {
+      return cwdApp;
+    }
+    return null;
   }
 
   /**
@@ -317,7 +371,7 @@ class SystemUpdater {
   }
 
   /**
-   * Native OS archive extraction (zero dependencies)
+   * Native OS archive extraction (zero dependencies, completely hidden without terminal windows)
    */
   private extractArchive(archivePath: string, destDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -329,6 +383,8 @@ class SystemUpdater {
         args = [
           '-NoProfile',
           '-NonInteractive',
+          '-WindowStyle',
+          'Hidden',
           '-Command',
           `Expand-Archive -LiteralPath "${archivePath}" -DestinationPath "${destDir}" -Force`,
         ];
@@ -340,7 +396,7 @@ class SystemUpdater {
         args = ['-q', '-o', archivePath, '-d', destDir];
       }
 
-      const child = spawn(cmd, args, { stdio: 'ignore' });
+      const child = spawn(cmd, args, { stdio: 'ignore', windowsHide: true });
       child.on('close', (code) => {
         if (code === 0) resolve();
         else reject(new Error(`Extraction failed with exit code ${code}`));
@@ -351,20 +407,18 @@ class SystemUpdater {
 
   /**
    * Spawns a fully detached update runner that waits for this process to exit,
-   * updates the code files, and restarts the companion app.
+   * updates the code files, and restarts the companion app silently without any command windows.
    */
   private spawnDetachedRunner(payloadDir: string, appRootDir: string, tempBase: string): void {
     if (process.platform === 'win32') {
       const runnerBat = path.join(tempBase, 'apply-update.bat');
       const batContent = `@echo off
 chcp 65001 > nul
-echo Waiting for Clinic Records to exit...
 timeout /t 2 /nobreak > nul
 
 set "SRC=${payloadDir}"
 set "DEST=${appRootDir}"
 
-echo Applying Clinic Records update...
 if exist "%SRC%\\resources" (
     xcopy /E /I /Y /Q "%SRC%\\resources" "%DEST%\\resources\\"
 )
@@ -375,39 +429,47 @@ if exist "%SRC%\\تعليمات_التشغيل.txt" (
     copy /Y "%SRC%\\تعليمات_التشغيل.txt" "%DEST%\\تعليمات_التشغيل.txt"
 )
 
-echo Starting updated Clinic Records...
 timeout /t 1 /nobreak > nul
 if exist "%DEST%\\Clinic Records.exe" (
     start "" "%DEST%\\Clinic Records.exe"
 ) else (
     start "" "%DEST%\\resources\\runtime\\node.exe" "%DEST%\\resources\\dist\\server.js"
 )
-
-timeout /t 3 /nobreak > nul
 exit
 `;
       fs.writeFileSync(runnerBat, batContent, 'utf-8');
 
-      const proc = spawn('cmd.exe', ['/c', runnerBat], {
+      // VBScript wrapper ensures 100% silent execution in Windows with zero black terminal flashes
+      const vbsPath = path.join(tempBase, 'silent-run.vbs');
+      const vbsContent = 'Set WshShell = CreateObject("WScript.Shell")\r\nWshShell.Run chr(34) & WScript.Arguments(0) & chr(34), 0, False\r\n';
+      fs.writeFileSync(vbsPath, vbsContent, 'utf-8');
+
+      const proc = spawn('wscript.exe', ['//B', '//Nologo', vbsPath, runnerBat], {
         detached: true,
         stdio: 'ignore',
+        windowsHide: true,
         cwd: tempBase,
       });
       proc.unref();
     } else if (process.platform === 'darwin') {
       const runnerSh = path.join(tempBase, 'apply-update.sh');
+      const macBundle = this.getMacAppBundlePath();
+      const destApp = macBundle || path.join(appRootDir, 'Clinic Records.app');
+      const destDir = path.dirname(destApp);
+
       const shContent = `#!/bin/bash
 sleep 2
 SRC="${payloadDir}"
-DEST="${appRootDir}"
+DEST_APP="${destApp}"
+DEST_DIR="${destDir}"
 
 if [ -d "$SRC/Clinic Records.app" ]; then
-    rm -rf "$DEST/Clinic Records.app"
-    cp -R "$SRC/Clinic Records.app" "$DEST/"
+    rm -rf "$DEST_APP"
+    cp -R "$SRC/Clinic Records.app" "$DEST_DIR/"
 fi
 
-if [ -f "$DEST/Clinic Records.app/Contents/MacOS/Clinic Records" ]; then
-    open "$DEST/Clinic Records.app"
+if [ -d "$DEST_APP" ]; then
+    open -a "$DEST_APP" || open "$DEST_APP"
 fi
 exit 0
 `;

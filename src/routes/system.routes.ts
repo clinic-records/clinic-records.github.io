@@ -147,16 +147,24 @@ export function registerSystemRoutes(
 
   // 9. Trigger in-place auto update
   app.post('/api/system/update/install', async (_req, reply) => {
+    // 1. Synchronously acquire lock to prevent race conditions across multiple clients/launchers
+    if (!systemUpdater.acquireUpdateLock()) {
+      return reply.status(409).send({
+        error: 'عملية التحديث قيد التنفيذ بالفعل حالياً من قبل مستخدم أو شاشة أخرى.',
+      });
+    }
+
     try {
-      // Notify all connected clients across the LAN that server update is starting
+      // 2. Notify all connected clients across the LAN that server update is starting
       realtimeManager.broadcastServerUpdating();
 
-      // Launch asynchronous in-place update flow
+      // 3. Launch asynchronous in-place update flow
       systemUpdater.installUpdate(db, config).catch((err) => {
         console.error('In-place update error:', err);
       });
       return reply.send({ success: true, message: 'بدأت عملية التحديث بنجاح' });
     } catch (err: any) {
+      systemUpdater.releaseUpdateLock(err?.message);
       return reply.status(400).send({ error: err?.message || 'فشل بدء التحديث' });
     }
   });

@@ -635,10 +635,18 @@ namespace ClinicRecordsLauncher
                                 {
                                     using (var localClient = new HttpClient())
                                     {
-                                        var postRes = await localClient.PostAsync("http://127.0.0.1:" + currentPort + "/api/system/update/install", new StringContent(""));
-                                        if (postRes.IsSuccessStatusCode)
+                                        localClient.Timeout = TimeSpan.FromSeconds(30);
+                                        var postRes = await localClient.PostAsync("http://127.0.0.1:" + currentPort + "/api/system/update/install", new StringContent("{}", Encoding.UTF8, "application/json"));
+                                        if (postRes.StatusCode == (HttpStatusCode)409)
                                         {
-                                            MessageBox.Show("بدأت عملية التحديث بنجاح.\nسيتم تنزيل الحزمة وتحديث الملفات وإعادة تشغيل البرنامج تلقائياً خلال لحظات.", "تحديث المنظومة", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                            MessageBox.Show("عملية التحديث قيد التنفيذ بالفعل حالياً من قبل مستخدم أو شاشة أخرى.", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                        }
+                                        else if (postRes.IsSuccessStatusCode)
+                                        {
+                                            using (var progressForm = new UpdateProgressForm(currentPort, htmlMatch.Success ? htmlMatch.Groups[1].Value : ""))
+                                            {
+                                                progressForm.ShowDialog(this);
+                                            }
                                         }
                                         else
                                         {
@@ -732,6 +740,145 @@ namespace ClinicRecordsLauncher
                 trayIcon.Dispose();
             }
             Environment.Exit(0);
+        }
+    }
+
+    public class UpdateProgressForm : Form
+    {
+        private int port;
+        private string htmlUrl;
+        private System.Windows.Forms.Timer pollTimer;
+        private Label lblTitle;
+        private Label lblStatus;
+        private ProgressBar progressBar;
+        private Label lblPercent;
+        private Label lblHint;
+
+        public UpdateProgressForm(int port, string htmlUrl)
+        {
+            this.port = port;
+            this.htmlUrl = htmlUrl;
+
+            this.Text = "تحديث سجلات العيادة الطبية";
+            this.RightToLeft = RightToLeft.Yes;
+            this.RightToLeftLayout = true;
+            this.Size = new Size(440, 185);
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.ControlBox = false;
+
+            lblTitle = new Label();
+            lblTitle.Text = "🚀 جارٍ تثبيت التحديث التلقائي للمنظومة...";
+            lblTitle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            lblTitle.Bounds = new Rectangle(20, 15, 385, 24);
+            this.Controls.Add(lblTitle);
+
+            lblStatus = new Label();
+            lblStatus.Text = "جارٍ أخذ نسخة احتياطية تأمينية وبدء التنزيل...";
+            lblStatus.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
+            lblStatus.ForeColor = Color.FromArgb(70, 70, 70);
+            lblStatus.Bounds = new Rectangle(20, 45, 385, 20);
+            this.Controls.Add(lblStatus);
+
+            progressBar = new ProgressBar();
+            progressBar.Bounds = new Rectangle(20, 75, 330, 22);
+            progressBar.Minimum = 0;
+            progressBar.Maximum = 100;
+            progressBar.Value = 5;
+            this.Controls.Add(progressBar);
+
+            lblPercent = new Label();
+            lblPercent.Text = "5%";
+            lblPercent.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            lblPercent.Bounds = new Rectangle(355, 76, 50, 20);
+            this.Controls.Add(lblPercent);
+
+            lblHint = new Label();
+            lblHint.Text = "ⓘ لا تغلق البرنامج حتى تكتمل عملية التحديث وإعادة التشغيل";
+            lblHint.Font = new Font("Segoe UI", 8f, FontStyle.Regular);
+            lblHint.ForeColor = Color.Gray;
+            lblHint.TextAlign = ContentAlignment.MiddleCenter;
+            lblHint.Bounds = new Rectangle(20, 108, 385, 20);
+            this.Controls.Add(lblHint);
+
+            pollTimer = new System.Windows.Forms.Timer();
+            pollTimer.Interval = 500;
+            pollTimer.Tick += async (s, e) => await CheckStatus();
+            pollTimer.Start();
+        }
+
+        private async Task CheckStatus()
+        {
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(3);
+                    var res = await client.GetAsync("http://127.0.0.1:" + port + "/api/system/update/status");
+                    if (res.IsSuccessStatusCode)
+                    {
+                        string json = await res.Content.ReadAsStringAsync();
+                        var statusMatch = Regex.Match(json, "\"status\"\\s*:\\s*\"([^\"]+)\"");
+                        var progMatch = Regex.Match(json, "\"progress\"\\s*:\\s*(\\d+)");
+                        var msgMatch = Regex.Match(json, "\"message\"\\s*:\\s*\"([^\"]+)\"");
+                        var errMatch = Regex.Match(json, "\"error\"\\s*:\\s*\"([^\"]+)\"");
+
+                        if (progMatch.Success)
+                        {
+                            int val = int.Parse(progMatch.Groups[1].Value);
+                            progressBar.Value = Math.Min(100, Math.Max(0, val));
+                            lblPercent.Text = val + "%";
+                        }
+
+                        if (msgMatch.Success)
+                        {
+                            lblStatus.Text = msgMatch.Groups[1].Value;
+                        }
+
+                        if (statusMatch.Success)
+                        {
+                            string st = statusMatch.Groups[1].Value;
+                            if (st == "ready")
+                            {
+                                pollTimer.Stop();
+                                progressBar.Value = 100;
+                                lblPercent.Text = "100%";
+                                lblStatus.Text = "✅ تم تجهيز التحديث بنجاح! سيتم إغلاق البرنامج وإعادة التشغيل تلقائياً...";
+                            }
+                            else if (st == "error")
+                            {
+                                pollTimer.Stop();
+                                this.Close();
+                                string errMsg = errMatch.Success ? errMatch.Groups[1].Value : "فشلت عملية التحديث.";
+                                var dlg = MessageBox.Show(errMsg + "\n\nهل ترغب في فتح صفحة التحميل للحصول على النسخة يدوياً؟", "تعذر إكمال التحديث", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                                if (dlg == DialogResult.Yes && !string.IsNullOrEmpty(htmlUrl))
+                                {
+                                    Process.Start(new ProcessStartInfo(htmlUrl) { UseShellExecute = true });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Connection drops briefly when process restarts
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (pollTimer != null)
+                {
+                    pollTimer.Stop();
+                    pollTimer.Dispose();
+                }
+            }
+            base.Dispose(disposing);
         }
     }
 }

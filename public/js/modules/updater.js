@@ -90,6 +90,9 @@ export function initUpdater(elements) {
       const startRes = await fetch('/api/system/update/install', { method: 'POST' });
       const startData = await startRes.json();
       if (!startRes.ok) {
+        if (startRes.status === 409) {
+          throw new Error('عملية التحديث قيد التنفيذ بالفعل حالياً بواسطة مستخدم أو شاشة أخرى.');
+        }
         throw new Error(startData.error || 'فشل بدء التحديث');
       }
 

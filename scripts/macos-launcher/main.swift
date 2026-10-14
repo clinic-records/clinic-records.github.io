@@ -491,6 +491,8 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         }
     }
     
+    private var activeProgressController: UpdateProgressWindowController?
+    
     @objc private func checkUpdatesClicked() {
         updateButton.isEnabled = false
         updateButton.title = "جارٍ الفحص..."
@@ -503,7 +505,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 self?.updateButton.isEnabled = true
-                self?.updateButton.title = "فحص التحديثات"
+                self?.updateButton.title = "🔄 فحص التحديثات"
                 
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -517,13 +519,18 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
                 
                 let currentVer = self?.getCurrentAppVersion() ?? "v1.0.0"
                 if latestTag.compare(currentVer, options: .numeric) == .orderedDescending {
+                    let htmlUrl = json["html_url"] as? String ?? "https://github.com/clinic-records/clinic-records.github.io/releases"
                     let alert = NSAlert()
                     alert.messageText = "يوجد تحديث جديد متاح (\(latestTag))!"
-                    alert.informativeText = "هل ترغب في فتح صفحة التحميل للحصول على آخر نسخة؟"
-                    alert.addButton(withTitle: "فتح صفحة التحميل")
+                    alert.informativeText = "الإصدار الحالي: \(currentVer)\nالإصدار الأحدث: \(latestTag)\n\nهل ترغب في تثبيت التحديث وإعادة تشغيل المنظومة تلقائياً الآن؟\n(ملاحظة: سيتم أخذ نسخة احتياطية تأمينية للبيانات تلقائياً قبل بدء التحديث)"
+                    alert.addButton(withTitle: "🚀 تثبيت التحديث التلقائي الآن")
+                    alert.addButton(withTitle: "🌐 فتح صفحة التحميل")
                     alert.addButton(withTitle: "إلغاء")
-                    if alert.runModal() == .alertFirstButtonReturn {
-                        if let htmlUrl = json["html_url"] as? String, let u = URL(string: htmlUrl) {
+                    let res = alert.runModal()
+                    if res == .alertFirstButtonReturn {
+                        self?.startInPlaceUpdate(latestTag: latestTag, htmlUrl: htmlUrl)
+                    } else if res == .alertSecondButtonReturn {
+                        if let u = URL(string: htmlUrl) {
                             NSWorkspace.shared.open(u)
                         }
                     }
@@ -532,6 +539,56 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
                     alert.messageText = "أنت تستخدم أحدث إصدار!"
                     alert.informativeText = "البرنامج محدث بالكامل (\(currentVer))."
                     alert.runModal()
+                }
+            }
+        }.resume()
+    }
+    
+    private func startInPlaceUpdate(latestTag: String, htmlUrl: String) {
+        guard ServerManager.shared.isRunning else {
+            let alert = NSAlert()
+            alert.messageText = "الخادم متوقف حالياً"
+            alert.informativeText = "يرجى تشغيل السيرفر أولاً لتتمكن المنظومة من تنزيل وتثبيت التحديث تلقائياً."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+
+        let port = ServerManager.shared.currentPort
+        guard let url = URL(string: "http://127.0.0.1:\(port)/api/system/update/install") else { return }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 30
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = "{}".data(using: .utf8)
+
+        URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let httpResp = response as? HTTPURLResponse {
+                    if httpResp.statusCode == 409 {
+                        let alert = NSAlert()
+                        alert.messageText = "التحديث قيد التنفيذ بالفعل"
+                        alert.informativeText = "عملية التحديث قيد التنفيذ بالفعل حالياً من قبل مستخدم أو شاشة أخرى."
+                        alert.alertStyle = .informational
+                        alert.runModal()
+                        return
+                    } else if httpResp.statusCode == 200 {
+                        // Open live progress tracking window
+                        self?.activeProgressController = UpdateProgressWindowController(port: port, htmlUrl: htmlUrl)
+                        self?.activeProgressController?.showWindow(nil)
+                        return
+                    }
+                }
+                
+                // If failed to start, offer to open github
+                let alert = NSAlert()
+                alert.messageText = "تعذر بدء التحديث التلقائي"
+                alert.informativeText = error?.localizedDescription ?? "حدث خطأ أثناء التواصل مع السيرفر المحلي لبدء التحديث.\nهل ترغب في فتح صفحة التحميل يدوياً؟"
+                alert.addButton(withTitle: "فتح صفحة التحميل")
+                alert.addButton(withTitle: "إلغاء")
+                if alert.runModal() == .alertFirstButtonReturn, let u = URL(string: htmlUrl) {
+                    NSWorkspace.shared.open(u)
                 }
             }
         }.resume()
@@ -553,6 +610,119 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         sender.orderOut(nil)
         return false
+    }
+}
+
+class UpdateProgressWindowController: NSWindowController {
+    private var progressIndicator: NSProgressIndicator!
+    private var statusLabel: NSTextField!
+    private var percentLabel: NSTextField!
+    private var pollTimer: Timer?
+    private var port: Int
+    private var htmlUrl: String
+    
+    init(port: Int, htmlUrl: String) {
+        self.port = port
+        self.htmlUrl = htmlUrl
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 440, height: 165),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.center()
+        window.title = "تحديث سجلات العيادة الطبية"
+        window.isReleasedWhenClosed = false
+        super.init(window: window)
+        setupUI()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setupUI() {
+        guard let contentView = window?.contentView else { return }
+        
+        let titleLabel = NSTextField(labelWithString: "🚀 جارٍ تثبيت التحديث التلقائي للمنظومة...")
+        titleLabel.font = NSFont.boldSystemFont(ofSize: 14)
+        titleLabel.alignment = .right
+        titleLabel.frame = NSRect(x: 20, y: 120, width: 400, height: 22)
+        contentView.addSubview(titleLabel)
+        
+        statusLabel = NSTextField(labelWithString: "جارٍ أخذ نسخة احتياطية تأمينية وبدء التنزيل...")
+        statusLabel.font = NSFont.systemFont(ofSize: 12)
+        statusLabel.textColor = .secondaryLabelColor
+        statusLabel.alignment = .right
+        statusLabel.frame = NSRect(x: 20, y: 88, width: 400, height: 20)
+        contentView.addSubview(statusLabel)
+        
+        progressIndicator = NSProgressIndicator(frame: NSRect(x: 20, y: 48, width: 335, height: 20))
+        progressIndicator.isIndeterminate = false
+        progressIndicator.minValue = 0
+        progressIndicator.maxValue = 100
+        progressIndicator.doubleValue = 5
+        contentView.addSubview(progressIndicator)
+        
+        percentLabel = NSTextField(labelWithString: "5%")
+        percentLabel.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .bold)
+        percentLabel.alignment = .left
+        percentLabel.frame = NSRect(x: 365, y: 48, width: 55, height: 20)
+        contentView.addSubview(percentLabel)
+        
+        let footerHint = NSTextField(labelWithString: "ⓘ لا تغلق هذه النافذة حتى تكتمل عملية التحديث وإعادة التشغيل")
+        footerHint.font = NSFont.systemFont(ofSize: 10.5)
+        footerHint.textColor = .tertiaryLabelColor
+        footerHint.alignment = .center
+        footerHint.frame = NSRect(x: 20, y: 16, width: 400, height: 18)
+        contentView.addSubview(footerHint)
+        
+        startPolling()
+    }
+    
+    private func startPolling() {
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.checkStatus()
+        }
+    }
+    
+    private func checkStatus() {
+        guard let url = URL(string: "http://127.0.0.1:\(port)/api/system/update/status") else { return }
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let status = json["status"] as? String else { return }
+            
+            let progress = json["progress"] as? Double ?? 0
+            let message = json["message"] as? String ?? ""
+            
+            DispatchQueue.main.async {
+                self?.progressIndicator.doubleValue = progress
+                self?.percentLabel.stringValue = "\(Int(progress))%"
+                if !message.isEmpty {
+                    self?.statusLabel.stringValue = message
+                }
+                
+                if status == "ready" {
+                    self?.pollTimer?.invalidate()
+                    self?.statusLabel.stringValue = "✅ تم تجهيز التحديث بنجاح! سيتم إغلاق البرنامج وإعادة التشغيل تلقائياً..."
+                    self?.progressIndicator.doubleValue = 100
+                    self?.percentLabel.stringValue = "100%"
+                } else if status == "error" {
+                    self?.pollTimer?.invalidate()
+                    self?.window?.close()
+                    let err = json["error"] as? String ?? "فشلت عملية التحديث"
+                    let alert = NSAlert()
+                    alert.messageText = "تعذر إكمال التحديث"
+                    alert.informativeText = "\(err)\n\nهل ترغب في فتح صفحة التحميل للحصول على النسخة يدوياً؟"
+                    alert.addButton(withTitle: "فتح صفحة التحميل")
+                    alert.addButton(withTitle: "إلغاء")
+                    if alert.runModal() == .alertFirstButtonReturn, let u = URL(string: self?.htmlUrl ?? "") {
+                        NSWorkspace.shared.open(u)
+                    }
+                }
+            }
+        }.resume()
     }
 }
 
