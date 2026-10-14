@@ -72,13 +72,16 @@ class SystemUpdater {
   }
 
   /**
-   * Reads current application version dynamically from package.json
+   * Reads current application version dynamically from package.json or macOS Info.plist
    */
   public getCurrentVersion(): string {
+    const importMetaDir = path.dirname(new URL(import.meta.url).pathname);
     const candidates = [
       path.resolve(process.cwd(), 'package.json'),
       path.resolve(process.cwd(), 'resources', 'package.json'),
-      path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', 'package.json'),
+      path.resolve(importMetaDir, '..', 'package.json'),
+      path.resolve(importMetaDir, '..', '..', 'package.json'),
+      path.resolve(path.dirname(process.execPath), '..', '..', 'package.json'),
     ];
 
     for (const p of candidates) {
@@ -91,6 +94,25 @@ class SystemUpdater {
         } catch { }
       }
     }
+
+    // On macOS, also check adjacent Info.plist if running inside .app bundle
+    if (process.platform === 'darwin') {
+      const macBundle = this.getMacAppBundlePath();
+      if (macBundle) {
+        const plistPath = path.join(macBundle, 'Contents', 'Info.plist');
+        if (fs.existsSync(plistPath)) {
+          try {
+            const plistContent = fs.readFileSync(plistPath, 'utf-8');
+            const match = plistContent.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/);
+            if (match && match[1]) {
+              const v = match[1].trim();
+              return v.startsWith('v') ? v : `v${v}`;
+            }
+          } catch { }
+        }
+      }
+    }
+
     return 'v1.0.0';
   }
 
