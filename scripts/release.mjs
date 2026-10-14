@@ -105,7 +105,31 @@ if (fs.existsSync(lockPath)) {
   console.log(`   ✓ package-lock.json -> ${newVersion}`);
 }
 
-console.log('   ℹ️  All platform targets (Windows C#, macOS Swift, Linux, Bash, UI) dynamically resolve version from package.json.');
+// C. README.md (Direct Download Links)
+const readmePath = path.resolve(ROOT_DIR, 'README.md');
+if (fs.existsSync(readmePath)) {
+  let readme = fs.readFileSync(readmePath, 'utf-8');
+  readme = readme.replace(
+    /\/releases\/(?:latest\/download|download\/v[^\/]+)\/ClinicRecords-(?:v[0-9.]+-)?(Windows-x64\.zip)/g,
+    `/releases/download/${newTag}/ClinicRecords-${newTag}-$1`
+  );
+  readme = readme.replace(
+    /\/releases\/(?:latest\/download|download\/v[^\/]+)\/ClinicRecords-(?:v[0-9.]+-)?(macOS-AppleSilicon\.zip)/g,
+    `/releases/download/${newTag}/ClinicRecords-${newTag}-$1`
+  );
+  readme = readme.replace(
+    /\/releases\/(?:latest\/download|download\/v[^\/]+)\/ClinicRecords-(?:v[0-9.]+-)?(macOS-Intel\.zip)/g,
+    `/releases/download/${newTag}/ClinicRecords-${newTag}-$1`
+  );
+  readme = readme.replace(
+    /\/releases\/(?:latest\/download|download\/v[^\/]+)\/ClinicRecords-(?:v[0-9.]+-)?(Linux-x64\.tar\.gz)/g,
+    `/releases/download/${newTag}/ClinicRecords-${newTag}-$1`
+  );
+  fs.writeFileSync(readmePath, readme, 'utf-8');
+  console.log(`   ✓ README.md -> direct download links synced to ${newTag}`);
+}
+
+console.log('   ℹ️  All platform targets dynamically resolve version from package.json & README.');
 
 // 6. Git commit and tag
 console.log('\n🏷️  Step 4/5: Creating Git commit and release tag...');

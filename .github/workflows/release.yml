@@ -47,9 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clinic-records-windows
-          path: |
-            ClinicRecords-*-Windows-x64.zip
-            ClinicRecords-Windows-x64.zip
+          path: ClinicRecords-*-Windows-x64.zip
 
   build-macos-arm64:
     name: Build macOS Apple Silicon (.app Bundle)
@@ -80,9 +78,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clinic-records-macos-arm64
-          path: |
-            ClinicRecords-*-macOS-AppleSilicon.zip
-            ClinicRecords-macOS-AppleSilicon.zip
+          path: ClinicRecords-*-macOS-AppleSilicon.zip
 
   build-macos-intel:
     name: Build macOS Intel (.app Bundle)
@@ -113,9 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clinic-records-macos-intel
-          path: |
-            ClinicRecords-*-macOS-Intel.zip
-            ClinicRecords-macOS-Intel.zip
+          path: ClinicRecords-*-macOS-Intel.zip
 
   build-linux:
     name: Build Linux x64 Package
@@ -146,9 +140,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clinic-records-linux
-          path: |
-            ClinicRecords-*-Linux-x64.tar.gz
-            ClinicRecords-Linux-x64.tar.gz
+          path: ClinicRecords-*-Linux-x64.tar.gz
 
   release:
     name: Publish GitHub Release

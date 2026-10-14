@@ -29,10 +29,10 @@
 
 | نظام التشغيل | المعالج / التوافق | رابط التحميل المباشر | طريقة التشغيل |
 | :--- | :--- | :---: | :--- |
-| **🪟 ويندوز (Windows)** | 64-bit (Windows 10 / 11) | [**⬇️ تحميل لويندوز (ZIP)**](https://github.com/clinic-records/clinic-records.github.io/releases/latest/download/ClinicRecords-Windows-x64.zip) | فك الضغط وتشغيل `Clinic Records.exe` |
-| **🍏 ماك (Apple Silicon)** | معالجات M1 / M2 / M3 / M4 | [**⬇️ تحميل لماك M1/M2/M3/M4 (ZIP)**](https://github.com/clinic-records/clinic-records.github.io/releases/latest/download/ClinicRecords-macOS-AppleSilicon.zip) | فك الضغط وتشغيل `Clinic Records.app` |
-| **🍏 ماك (Intel)** | أجهزة ماك بمعالجات إنتل | [**⬇️ تحميل لماك Intel (ZIP)**](https://github.com/clinic-records/clinic-records.github.io/releases/latest/download/ClinicRecords-macOS-Intel.zip) | فك الضغط وتشغيل `Clinic Records.app` |
-| **🐧 لينكس (Linux)** | كافة توزيعات 64-bit | [**⬇️ تحميل للينكس (TAR.GZ)**](https://github.com/clinic-records/clinic-records.github.io/releases/latest/download/ClinicRecords-Linux-x64.tar.gz) | فك الضغط وتشغيل `./start.sh` |
+| **🪟 ويندوز (Windows)** | 64-bit (Windows 10 / 11) | [**⬇️ تحميل لويندوز (ZIP)**](https://github.com/clinic-records/clinic-records.github.io/releases/download/v1.0.14/ClinicRecords-v1.0.14-Windows-x64.zip) | فك الضغط وتشغيل `Clinic Records.exe` |
+| **🍏 ماك (Apple Silicon)** | معالجات M1 / M2 / M3 / M4 | [**⬇️ تحميل لماك M1/M2/M3/M4 (ZIP)**](https://github.com/clinic-records/clinic-records.github.io/releases/download/v1.0.14/ClinicRecords-v1.0.14-macOS-AppleSilicon.zip) | فك الضغط وتشغيل `Clinic Records.app` |
+| **🍏 ماك (Intel)** | أجهزة ماك بمعالجات إنتل | [**⬇️ تحميل لماك Intel (ZIP)**](https://github.com/clinic-records/clinic-records.github.io/releases/download/v1.0.14/ClinicRecords-v1.0.14-macOS-Intel.zip) | فك الضغط وتشغيل `Clinic Records.app` |
+| **🐧 لينكس (Linux)** | كافة توزيعات 64-bit | [**⬇️ تحميل للينكس (TAR.GZ)**](https://github.com/clinic-records/clinic-records.github.io/releases/download/v1.0.14/ClinicRecords-v1.0.14-Linux-x64.tar.gz) | فك الضغط وتشغيل `./start.sh` |
 
 <br />
 
