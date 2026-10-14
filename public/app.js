@@ -32,6 +32,8 @@ function initClinicApp() {
     btnNetworkInfo: document.getElementById('btn-network-info'),
     modalNetwork: document.getElementById('modal-network'),
     networkQrImage: document.getElementById('network-qr-image'),
+    networkMdnsUrl: document.getElementById('network-mdns-url'),
+    btnCopyMdnsUrl: document.getElementById('btn-copy-mdns-url'),
     networkLanUrl: document.getElementById('network-lan-url'),
     btnCopyLanUrl: document.getElementById('btn-copy-lan-url'),
     onlineUsersBadge: document.getElementById('online-users-badge'),
@@ -173,10 +175,13 @@ function initClinicApp() {
       const data = await api.getNetworkInfo();
       state.networkInfo = data;
 
-      if (elements.navLanIp && data.lanUrl) {
-        elements.navLanIp.textContent = data.lanUrl.replace('http://', '');
+      if (elements.navLanIp) {
+        elements.navLanIp.textContent = (data.mdnsUrl || data.lanUrl || '').replace('http://', '');
       }
-      if (elements.networkLanUrl) {
+      if (elements.networkMdnsUrl && data.mdnsUrl) {
+        elements.networkMdnsUrl.textContent = data.mdnsUrl;
+      }
+      if (elements.networkLanUrl && data.lanUrl) {
         elements.networkLanUrl.textContent = data.lanUrl;
       }
       if (data.qrCodeDataUrl) {
@@ -192,10 +197,19 @@ function initClinicApp() {
     openModal(elements.modalNetwork);
   });
 
+  elements.btnCopyMdnsUrl?.addEventListener('click', () => {
+    const url = state.networkInfo?.mdnsUrl || elements.networkMdnsUrl?.textContent;
+    if (url) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('تم نسخ رابط الوصول الدائم (clinic.local)');
+      });
+    }
+  });
+
   elements.btnCopyLanUrl?.addEventListener('click', () => {
     if (state.networkInfo?.lanUrl) {
       navigator.clipboard.writeText(state.networkInfo.lanUrl).then(() => {
-        showToast('تم نسخ رابط البرنامج بنجاح');
+        showToast('تم نسخ رابط IP المباشر بنجاح');
       });
     }
   });

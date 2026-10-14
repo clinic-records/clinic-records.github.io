@@ -76,6 +76,7 @@ namespace ClinicRecordsLauncher
         private Process serverProcess;
         private string appDir;
         private string lanUrl = "http://127.0.0.1:3000";
+        private string mdnsUrl = "http://clinic.local:3000";
         private int currentPort = 3000;
         private bool isServerRunning = false;
         private bool hasOpenedBrowserThisRun = false;
@@ -97,6 +98,7 @@ namespace ClinicRecordsLauncher
         private TextBox txtUrl;
         private Button btnCopy;
         private Button btnOpen;
+        private Label lblLanSub;
         private PictureBox pbQr;
         
         private Button btnToggleServer;
@@ -204,22 +206,22 @@ namespace ClinicRecordsLauncher
 
             // 4. Network URL Section
             Label lblUrlTitle = new Label();
-            lblUrlTitle.Text = "رابط الشبكة المحلية (LAN URL):";
+            lblUrlTitle.Text = "🌐 رابط الوصول الدائم (الثابت دائماً):";
             lblUrlTitle.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
             lblUrlTitle.ForeColor = Color.FromArgb(71, 85, 105);
-            lblUrlTitle.Bounds = new Rectangle(30, 145, 380, 20);
+            lblUrlTitle.Bounds = new Rectangle(30, 142, 380, 18);
             this.Controls.Add(lblUrlTitle);
 
             txtUrl = new TextBox();
-            txtUrl.Text = "http://127.0.0.1:3000";
+            txtUrl.Text = "http://clinic.local:3000";
             txtUrl.ReadOnly = true;
             txtUrl.Font = new Font("Consolas", 10f, FontStyle.Regular);
-            txtUrl.Bounds = new Rectangle(30, 168, 255, 28);
+            txtUrl.Bounds = new Rectangle(30, 162, 255, 26);
             this.Controls.Add(txtUrl);
 
             btnCopy = new Button();
             btnCopy.Text = "نسخ";
-            btnCopy.Bounds = new Rectangle(295, 166, 65, 30);
+            btnCopy.Bounds = new Rectangle(295, 160, 65, 28);
             btnCopy.Click += (s, e) => {
                 if (!string.IsNullOrEmpty(txtUrl.Text)) Clipboard.SetText(txtUrl.Text);
             };
@@ -227,7 +229,7 @@ namespace ClinicRecordsLauncher
 
             btnOpen = new Button();
             btnOpen.Text = "فتح";
-            btnOpen.Bounds = new Rectangle(365, 166, 65, 30);
+            btnOpen.Bounds = new Rectangle(365, 160, 65, 28);
             btnOpen.Click += (s, e) => {
                 if (!string.IsNullOrEmpty(txtUrl.Text))
                 {
@@ -236,14 +238,21 @@ namespace ClinicRecordsLauncher
             };
             this.Controls.Add(btnOpen);
 
+            lblLanSub = new Label();
+            lblLanSub.Text = "📶 رابط الشبكة المباشر (IP البديل): --";
+            lblLanSub.Font = new Font("Segoe UI", 8.5f, FontStyle.Regular);
+            lblLanSub.ForeColor = Color.FromArgb(100, 116, 139);
+            lblLanSub.Bounds = new Rectangle(30, 190, 400, 18);
+            this.Controls.Add(lblLanSub);
+
             // 5. QR Code Box
             GroupBox gbQr = new GroupBox();
             gbQr.Text = " رمز الدخول السريع (QR) ";
-            gbQr.Bounds = new Rectangle(120, 208, 220, 200);
+            gbQr.Bounds = new Rectangle(120, 212, 220, 195);
             gbQr.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
 
             pbQr = new PictureBox();
-            pbQr.Bounds = new Rectangle(20, 22, 180, 168);
+            pbQr.Bounds = new Rectangle(20, 20, 180, 165);
             pbQr.SizeMode = PictureBoxSizeMode.Zoom;
             gbQr.Controls.Add(pbQr);
             this.Controls.Add(gbQr);
@@ -315,7 +324,8 @@ namespace ClinicRecordsLauncher
             trayMenu = new ContextMenuStrip();
             trayMenu.Items.Add("لوحة التحكم (Dashboard)", null, (s, e) => ShowDashboard());
             trayMenu.Items.Add("فتح في المتصفح", null, (s, e) => {
-                try { Process.Start(new ProcessStartInfo(lanUrl) { UseShellExecute = true }); } catch { }
+                string openUrl = !string.IsNullOrEmpty(mdnsUrl) ? mdnsUrl : lanUrl;
+                try { Process.Start(new ProcessStartInfo(openUrl) { UseShellExecute = true }); } catch { }
             });
             trayMenu.Items.Add(new ToolStripSeparator());
             trayMenu.Items.Add("إنهاء البرنامج بالكامل (خروج)", null, (s, e) => ExitApp());
@@ -547,6 +557,7 @@ namespace ClinicRecordsLauncher
                         string json = await client.GetStringAsync("http://127.0.0.1:3000/api/network");
                         
                         var urlMatch = Regex.Match(json, "\"lanUrl\"\\s*:\\s*\"([^\"]+)\"");
+                        var mdnsMatch = Regex.Match(json, "\"mdnsUrl\"\\s*:\\s*\"([^\"]+)\"");
                         var qrMatch = Regex.Match(json, "\"qrCodeDataUrl\"\\s*:\\s*\"data:image/[^;]+;base64,([^\"]+)\"");
                         var onlineMatch = Regex.Match(json, "\"onlineCount\"\\s*:\\s*(\\d+)");
                         var totalMatch = Regex.Match(json, "\"totalPatients\"\\s*:\\s*(\\d+)");
@@ -555,12 +566,14 @@ namespace ClinicRecordsLauncher
                         if (urlMatch.Success)
                         {
                             lanUrl = urlMatch.Groups[1].Value;
+                            if (mdnsMatch.Success) mdnsUrl = mdnsMatch.Groups[1].Value;
                             if (onlineMatch.Success) int.TryParse(onlineMatch.Groups[1].Value, out onlineCount);
                             if (totalMatch.Success) int.TryParse(totalMatch.Groups[1].Value, out totalPatients);
                             if (todayMatch.Success) int.TryParse(todayMatch.Groups[1].Value, out todayPatients);
 
                             this.Invoke((MethodInvoker)delegate {
-                                txtUrl.Text = lanUrl;
+                                txtUrl.Text = !string.IsNullOrEmpty(mdnsUrl) ? mdnsUrl : lanUrl;
+                                lblLanSub.Text = "📶 رابط الشبكة المباشر (IP البديل): " + lanUrl;
                                 lblStatusDot.ForeColor = Color.FromArgb(16, 185, 129);
                                 lblStatus.Text = "الخادم يعمل بنجاح";
                                 lblOnlineCount.Text = "👥 المتصلون: " + onlineCount;
@@ -584,7 +597,8 @@ namespace ClinicRecordsLauncher
                             if (!hasOpenedBrowserThisRun)
                             {
                                 hasOpenedBrowserThisRun = true;
-                                try { Process.Start(new ProcessStartInfo(lanUrl) { UseShellExecute = true }); } catch { }
+                                string openUrl = !string.IsNullOrEmpty(mdnsUrl) ? mdnsUrl : lanUrl;
+                                try { Process.Start(new ProcessStartInfo(openUrl) { UseShellExecute = true }); } catch { }
                             }
                             return;
                         }

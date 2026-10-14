@@ -7,10 +7,12 @@ class ServerManager {
     var process: Process?
     var isRunning = false
     var lanUrl: String = ""
+    var mdnsUrl: String = ""
     var currentPort: Int = 3000
     var qrImage: NSImage?
     var workingDir: String = ""
     var hasOpenedBrowserThisRun = false
+    private var netService: NetService?
     
     // Live Server Stats
     var onlineCount: Int = 0
@@ -80,6 +82,8 @@ class ServerManager {
     
     func stopServer() {
         stopPeriodicPolling()
+        netService?.stop()
+        netService = nil
         guard let proc = process else { return }
         proc.terminate()
         process = nil
@@ -143,6 +147,8 @@ class ServerManager {
                let lan = json["lanUrl"] as? String,
                let port = json["port"] as? Int {
                 
+                let mdns = json["mdnsUrl"] as? String ?? "http://clinic.local:\(port)"
+                
                 var qr: NSImage? = nil
                 if let qrDataUrl = json["qrCodeDataUrl"] as? String,
                    let base64 = qrDataUrl.components(separatedBy: ",").last,
@@ -152,8 +158,16 @@ class ServerManager {
                 
                 DispatchQueue.main.async {
                     self?.lanUrl = lan
+                    self?.mdnsUrl = mdns
                     self?.currentPort = port
                     self?.qrImage = qr
+                    
+                    if self?.netService == nil {
+                        let service = NetService(domain: "local.", type: "_http._tcp.", name: "clinic", port: Int32(port))
+                        service.publish()
+                        self?.netService = service
+                    }
+                    
                     if let online = json["onlineCount"] as? Int {
                         self?.onlineCount = online
                     }
@@ -169,7 +183,8 @@ class ServerManager {
                     // Open browser EXACTLY once on startup
                     if !(self?.hasOpenedBrowserThisRun ?? true) {
                         self?.hasOpenedBrowserThisRun = true
-                        if let browserUrl = URL(string: lan) {
+                        let openUrl = URL(string: mdns) ?? URL(string: lan)
+                        if let browserUrl = openUrl {
                             NSWorkspace.shared.open(browserUrl)
                         }
                     }
@@ -196,6 +211,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
     private var urlField: NSTextField!
     private var copyButton: NSButton!
     private var openBrowserButton: NSButton!
+    private var lblLanSub: NSTextField!
     private var qrImageView: NSImageView!
     
     private var toggleButton: NSButton!
@@ -274,12 +290,12 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         contentView.addSubview(statsBox)
         
         // 4. Network URL Section
-        let urlTitle = NSTextField(labelWithString: "رابط الشبكة المحلية (LAN URL):")
+        let urlTitle = NSTextField(labelWithString: "🌐 رابط الوصول الدائم (الثابت دائماً):")
         urlTitle.font = NSFont.boldSystemFont(ofSize: 12)
         urlTitle.frame = NSRect(x: 30, y: 445, width: 400, height: 18)
         contentView.addSubview(urlTitle)
         
-        urlField = NSTextField(string: "http://127.0.0.1:3000")
+        urlField = NSTextField(string: "http://clinic.local:3000")
         urlField.isEditable = false
         urlField.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
         urlField.frame = NSRect(x: 30, y: 415, width: 260, height: 26)
@@ -295,8 +311,14 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         openBrowserButton.frame = NSRect(x: 365, y: 411, width: 65, height: 32)
         contentView.addSubview(openBrowserButton)
         
+        lblLanSub = NSTextField(labelWithString: "📶 رابط الشبكة المباشر (IP البديل): --")
+        lblLanSub.font = NSFont.systemFont(ofSize: 10.5)
+        lblLanSub.textColor = .secondaryLabelColor
+        lblLanSub.frame = NSRect(x: 30, y: 395, width: 400, height: 16)
+        contentView.addSubview(lblLanSub)
+        
         // 5. QR Code Box
-        let qrBox = NSBox(frame: NSRect(x: 110, y: 195, width: 240, height: 205))
+        let qrBox = NSBox(frame: NSRect(x: 110, y: 195, width: 240, height: 195))
         qrBox.title = "رمز الدخول السريع (QR)"
         qrBox.titlePosition = .atTop
         
@@ -308,8 +330,8 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
             NSLayoutConstraint.activate([
                 qrImageView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
                 qrImageView.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -5),
-                qrImageView.widthAnchor.constraint(equalToConstant: 155),
-                qrImageView.heightAnchor.constraint(equalToConstant: 155)
+                qrImageView.widthAnchor.constraint(equalToConstant: 146),
+                qrImageView.heightAnchor.constraint(equalToConstant: 146)
             ])
         }
         contentView.addSubview(qrBox)
@@ -374,8 +396,14 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         restartButton.isEnabled = isRunning
         quickBackupButton.isEnabled = isRunning
         
-        if !ServerManager.shared.lanUrl.isEmpty {
+        if !ServerManager.shared.mdnsUrl.isEmpty {
+            urlField.stringValue = ServerManager.shared.mdnsUrl
+        } else if !ServerManager.shared.lanUrl.isEmpty {
             urlField.stringValue = ServerManager.shared.lanUrl
+        }
+        
+        if !ServerManager.shared.lanUrl.isEmpty {
+            lblLanSub.stringValue = "📶 رابط الشبكة المباشر (IP البديل): \(ServerManager.shared.lanUrl)"
         }
         
         if let qr = ServerManager.shared.qrImage {

@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 
 export interface NetworkInfo {
   lanUrl: string;
+  mdnsUrl: string;
   ip: string;
   port: number;
   qrCodeDataUrl: string;
@@ -69,12 +70,13 @@ export async function findAvailablePort(startPort: number, host = '0.0.0.0'): Pr
 }
 
 /**
- * Prepares network details with LAN IP and QR Code
+ * Prepares network details with LAN IP, permanent mDNS URL, and mobile QR Code
  */
 export async function getNetworkDetails(port: number): Promise<NetworkInfo> {
   const ips = getLocalLanIps();
   const primaryIp = ips[0] || '127.0.0.1';
   const lanUrl = `http://${primaryIp}:${port}`;
+  const mdnsUrl = `http://clinic.local:${port}`;
 
   let qrCodeDataUrl = '';
   try {
@@ -93,6 +95,7 @@ export async function getNetworkDetails(port: number): Promise<NetworkInfo> {
 
   return {
     lanUrl,
+    mdnsUrl,
     ip: primaryIp,
     port,
     qrCodeDataUrl,

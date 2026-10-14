@@ -10,6 +10,7 @@ import { loadConfig } from './config.js';
 import { ClinicDatabase } from './db/database.js';
 import { registerApiRoutes } from './routes/api.js';
 import { getNetworkDetails } from './utils/network.js';
+import { mdnsService } from './utils/mdns.js';
 
 async function bootstrap() {
   const config = loadConfig();
@@ -92,12 +93,17 @@ async function bootstrap() {
   try {
     const netDetails = await getNetworkDetails(activePort);
 
+    // Start in-app mDNS responder to broadcast clinic.local across the LAN
+    mdnsService.start(activePort, netDetails.ip, 'clinic.local');
+
     console.log('\n=============================================================');
     console.log('       CLINIC PATIENT RECORDS SERVER RUNNING');
     console.log('=============================================================');
-    console.log(`\n  NETWORK ACCESS URL:`);
+    console.log(`\n  🌐 PERMANENT LOCAL URL (mDNS / Zero-Config):`);
+    console.log(`  \x1b[36m\x1b[1m${netDetails.mdnsUrl}\x1b[0m`);
+    console.log(`\n  📶 DIRECT NETWORK IP (LAN):`);
     console.log(`  \x1b[32m\x1b[1m${netDetails.lanUrl}\x1b[0m`);
-    console.log('\n  SCAN QR CODE FROM MOBILE / TABLET:');
+    console.log('\n  📱 SCAN QR CODE FROM MOBILE / TABLET:');
 
     try {
       const qrTerminalStr = await qrcodeTerminal.toString(netDetails.lanUrl, {
@@ -127,6 +133,7 @@ async function bootstrap() {
 
   const gracefulShutdown = () => {
     console.log('\nStopping server and closing database...');
+    mdnsService.stop();
     db.close();
     process.exit(0);
   };

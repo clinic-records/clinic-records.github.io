@@ -818,11 +818,29 @@
           <img id="network-qr-image" src="" alt="QR Code" width="260" height="260">
         </div>
 
-        <div class="network-link-box">
-          <span class="link-label">رابط البرنامج:</span>
+        <!-- 1. Permanent Friendly URL (Zero-Config / mDNS) -->
+        <div class="network-link-box" style="border: 2px solid var(--primary, #0284c7); background: rgba(2, 132, 199, 0.05); border-radius: 12px; padding: 12px; margin-bottom: 12px; text-align: right;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span class="link-label" style="font-weight: 700; color: var(--primary, #0284c7); display: flex; align-items: center; gap: 6px;">
+              🌐 رابط الوصول الدائم (الثابت دائماً):
+            </span>
+            <span style="font-size: 0.75rem; background: var(--primary, #0284c7); color: white; padding: 2px 8px; border-radius: 999px; font-weight: 600;">لا يتغير أبداً</span>
+          </div>
           <div class="copy-link-row">
-            <code id="network-lan-url">http://...</code>
-            <button id="btn-copy-lan-url" class="btn btn-sm btn-outline">نسخ الرابط</button>
+            <code id="network-mdns-url" style="font-weight: 700; font-size: 1.05rem;">http://clinic.local:3000</code>
+            <button id="btn-copy-mdns-url" class="btn btn-sm btn-primary">نسخ الرابط الدائم</button>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted, #64748b); margin: 6px 0 0;">
+            يفتح من أي جهاز (كمبيوتر، آيباد، ماك، ويندوز، أجهزة تدعم mDNS) على نفس الشبكة بدون الحاجة لـ IP الجهاز.
+          </p>
+        </div>
+
+        <!-- 2. Direct Network IP (LAN IP Fallback) -->
+        <div class="network-link-box" style="border: 1px dashed var(--border-color, #cbd5e1); border-radius: 10px; padding: 10px; text-align: right;">
+          <span class="link-label" style="font-size: 0.85rem; color: var(--text-muted, #64748b);">📶 رابط الشبكة المباشر (IP البديل):</span>
+          <div class="copy-link-row" style="margin-top: 4px;">
+            <code id="network-lan-url" style="font-size: 0.9rem;">http://...</code>
+            <button id="btn-copy-lan-url" class="btn btn-sm btn-outline">نسخ الـ IP</button>
           </div>
         </div>
       </div>
