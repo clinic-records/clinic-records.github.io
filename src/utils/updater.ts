@@ -419,14 +419,23 @@ timeout /t 2 /nobreak > nul
 set "SRC=${payloadDir}"
 set "DEST=${appRootDir}"
 
+set RETRIES=0
+:COPY_LOOP
 if exist "%SRC%\\resources" (
-    xcopy /E /I /Y /Q "%SRC%\\resources" "%DEST%\\resources\\"
+    xcopy /E /I /Y /Q "%SRC%\\resources" "%DEST%\\resources\\" > nul 2>&1
 )
 if exist "%SRC%\\Clinic Records.exe" (
-    copy /Y "%SRC%\\Clinic Records.exe" "%DEST%\\Clinic Records.exe"
+    copy /Y "%SRC%\\Clinic Records.exe" "%DEST%\\Clinic Records.exe" > nul 2>&1
+)
+if errorlevel 1 (
+    set /a RETRIES+=1
+    if %RETRIES% leq 5 (
+        timeout /t 1 /nobreak > nul
+        goto COPY_LOOP
+    )
 )
 if exist "%SRC%\\تعليمات_التشغيل.txt" (
-    copy /Y "%SRC%\\تعليمات_التشغيل.txt" "%DEST%\\تعليمات_التشغيل.txt"
+    copy /Y "%SRC%\\تعليمات_التشغيل.txt" "%DEST%\\تعليمات_التشغيل.txt" > nul 2>&1
 )
 
 timeout /t 1 /nobreak > nul
@@ -466,6 +475,9 @@ DEST_DIR="${destDir}"
 if [ -d "$SRC/Clinic Records.app" ]; then
     rm -rf "$DEST_APP"
     cp -R "$SRC/Clinic Records.app" "$DEST_DIR/"
+    xattr -dr com.apple.quarantine "$DEST_APP" 2>/dev/null || true
+    chmod +x "$DEST_APP/Contents/MacOS/Clinic Records" 2>/dev/null || true
+    chmod +x "$DEST_APP/Contents/Resources/runtime/bin/node" 2>/dev/null || true
 fi
 
 if [ -d "$DEST_APP" ]; then
