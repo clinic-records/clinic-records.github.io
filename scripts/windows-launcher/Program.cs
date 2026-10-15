@@ -705,32 +705,49 @@ namespace ClinicRecordsLauncher
                             if (res == DialogResult.Yes)
                             {
                                 btnCheckUpdate.Text = "جارٍ التحديث...";
-                                try
+
+                                // Server must be running to perform an in-place update
+                                if (!isServerRunning)
                                 {
-                                    using (var localClient = new HttpClient())
+                                    MessageBox.Show(
+                                        "يجب تشغيل الخادم أولاً لتتمكن من تثبيت التحديث.\nاضغط 'تشغيل السيرفر' ثم أعد المحاولة.",
+                                        "تنبيه",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Warning);
+                                }
+                                else
+                                {
+                                    try
                                     {
-                                        localClient.Timeout = TimeSpan.FromSeconds(30);
-                                        var postRes = await localClient.PostAsync("http://127.0.0.1:" + currentPort + "/api/system/update/install", new StringContent("{}", Encoding.UTF8, "application/json"));
-                                        if (postRes.StatusCode == (HttpStatusCode)409)
+                                        using (var localClient = new HttpClient())
                                         {
-                                            MessageBox.Show("عملية التحديث قيد التنفيذ بالفعل حالياً من قبل مستخدم أو شاشة أخرى.", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                                        }
-                                        else if (postRes.IsSuccessStatusCode)
-                                        {
-                                            using (var progressForm = new UpdateProgressForm(currentPort, htmlMatch.Success ? htmlMatch.Groups[1].Value : ""))
+                                            localClient.Timeout = TimeSpan.FromSeconds(30);
+                                            var postRes = await localClient.PostAsync(
+                                                "http://127.0.0.1:" + currentPort + "/api/system/update/install",
+                                                new StringContent("{}", Encoding.UTF8, "application/json"));
+
+                                            if (postRes.StatusCode == (HttpStatusCode)409)
                                             {
-                                                progressForm.ShowDialog(this);
+                                                MessageBox.Show("عملية التحديث قيد التنفيذ بالفعل حالياً من قبل مستخدم أو شاشة أخرى.", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                            }
+                                            else if (postRes.IsSuccessStatusCode)
+                                            {
+                                                using (var progressForm = new UpdateProgressForm(currentPort, htmlMatch.Success ? htmlMatch.Groups[1].Value : ""))
+                                                {
+                                                    progressForm.ShowDialog(this);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                string errBody = await postRes.Content.ReadAsStringAsync();
+                                                MessageBox.Show("تعذّر بدء عملية التحديث.\n" + errBody, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                             }
                                         }
-                                        else
-                                        {
-                                            if (htmlMatch.Success) Process.Start(new ProcessStartInfo(htmlMatch.Groups[1].Value) { UseShellExecute = true });
-                                        }
                                     }
-                                }
-                                catch
-                                {
-                                    if (htmlMatch.Success) Process.Start(new ProcessStartInfo(htmlMatch.Groups[1].Value) { UseShellExecute = true });
+                                    catch
+                                    {
+                                        MessageBox.Show("تعذّر الاتصال بالخادم. تأكد من أن الخادم يعمل وأعد المحاولة.", "خطأ الاتصال", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    }
                                 }
                             }
                         }
@@ -827,6 +844,8 @@ namespace ClinicRecordsLauncher
         private ProgressBar progressBar;
         private Label lblPercent;
         private Label lblHint;
+        private int _consecutiveFailures = 0;
+        private bool _seenProgress = false;
 
         public UpdateProgressForm(int port, string htmlUrl)
         {
@@ -893,6 +912,7 @@ namespace ClinicRecordsLauncher
                     var res = await client.GetAsync("http://127.0.0.1:" + port + "/api/system/update/status");
                     if (res.IsSuccessStatusCode)
                     {
+                        _consecutiveFailures = 0; // reset on successful response
                         string json = await res.Content.ReadAsStringAsync();
                         var statusMatch = Regex.Match(json, "\"status\"\\s*:\\s*\"([^\"]+)\"");
                         var progMatch = Regex.Match(json, "\"progress\"\\s*:\\s*(\\d+)");
@@ -904,6 +924,7 @@ namespace ClinicRecordsLauncher
                             int val = int.Parse(progMatch.Groups[1].Value);
                             progressBar.Value = Math.Min(100, Math.Max(0, val));
                             lblPercent.Text = val + "%";
+                            if (val > 10) _seenProgress = true;
                         }
 
                         if (msgMatch.Success)
@@ -940,7 +961,22 @@ namespace ClinicRecordsLauncher
             }
             catch
             {
-                // Connection drops briefly when process restarts
+                // Connection drops when the server exits for restart.
+                // If we've already seen meaningful download progress, treat
+                // consecutive failures as the server successfully restarting.
+                if (_seenProgress)
+                {
+                    _consecutiveFailures++;
+                    if (_consecutiveFailures >= 3)
+                    {
+                        pollTimer.Stop();
+                        progressBar.Value = 100;
+                        lblPercent.Text = "100%";
+                        lblStatus.Text = "✅ تم تثبيت التحديث! جارٍ إعادة تشغيل البرنامج...";
+                        await Task.Delay(1000);
+                        Application.Exit();
+                    }
+                }
             }
         }
 

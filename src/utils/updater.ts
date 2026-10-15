@@ -338,10 +338,13 @@ class SystemUpdater {
         message: 'تم تجهيز التحديث بنجاح! سيتم إغلاق البرنامج وإعادة تشغيله تلقائياً الآن...',
       };
 
-      // Gracefully terminate current process after responding
+      // Delay exit long enough for multiple client polling cycles to catch 'ready' status:
+      // - C# UpdateProgressForm polls every 500ms
+      // - Web browser polls every 600ms
+      // - 4 seconds gives ~6-8 successful polls before exit so 'ready' is never missed
       setTimeout(() => {
         process.exit(0);
-      }, 1500);
+      }, 4000);
 
       return {
         success: true,
