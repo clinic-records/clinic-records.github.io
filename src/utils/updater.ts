@@ -450,7 +450,7 @@ class SystemUpdater {
       const runnerBat = path.join(tempBase, 'apply-update.bat');
       const batContent = `@echo off
 chcp 65001 > nul
-timeout /t 1 /nobreak > nul
+timeout /t 3 /nobreak > nul
 
 :: 1. Forcefully terminate running instances to release file locks on Windows
 taskkill /F /IM "Clinic Records.exe" > nul 2>&1
@@ -512,7 +512,7 @@ exit
       const destDir = path.dirname(destApp);
 
       const shContent = `#!/bin/bash
-sleep 1
+sleep 3
 
 # 1. Terminate any running Clinic Records app so bundle is completely unlocked
 killall "Clinic Records" 2>/dev/null || true

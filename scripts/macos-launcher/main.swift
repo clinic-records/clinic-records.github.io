@@ -182,9 +182,9 @@ class ServerManager {
             } else if type == "patients_list_changed" || type == "patient_updated" {
                 fetchServerStats()
             } else if type == "server_updating" {
-                // If update was initiated from web frontend, cleanly terminate companion after server prepares payload
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                    NSApplication.shared.terminate(nil)
+                // Update initiated: keep companion and server running so download & extraction complete safely.
+                DispatchQueue.main.async {
+                    self.onStatusChanged?()
                 }
             }
         }

@@ -1,13 +1,13 @@
-// ╔══════════════════════════════════════════════════════════════════════╗
-// ║  WARNING: This file is compiled with csc.exe (.NET Framework)      ║
+// ╔═══════════════════════════════════════════════════════════════════╗
+// ║  WARNING: This file is compiled with csc.exe (.NET Framework)     ║
 // ║  which only supports C# 5.0. The following are FORBIDDEN:         ║
 // ║    ❌ await inside catch/finally blocks  (C# 6.0+)                ║
-// ║    ❌ string interpolation $"..."         (C# 6.0+)                ║
-// ║    ❌ null-conditional ?.                 (C# 6.0+)                ║
-// ║    ❌ expression-bodied members =>        (C# 6.0+)                ║
-// ║    ❌ pattern matching                    (C# 7.0+)                ║
+// ║    ❌ string interpolation $"..."         (C# 6.0+)               ║
+// ║    ❌ null-conditional ?.                 (C# 6.0+)               ║
+// ║    ❌ expression-bodied members =>        (C# 6.0+)               ║
+// ║    ❌ pattern matching                    (C# 7.0+)               ║
 // ║  Use Thread.Sleep() instead of await Task.Delay() in catch blocks ║
-// ╚══════════════════════════════════════════════════════════════════════╝
+// ╚═══════════════════════════════════════════════════════════════════╝
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -589,9 +589,10 @@ namespace ClinicRecordsLauncher
                                 }
                                 if (json.Contains("server_updating"))
                                 {
-                                    // Update initiated from web frontend! Cleanly exit companion app after short delay so runner can replace files
-                                    await Task.Delay(2500);
-                                    ExitApp();
+                                    // Update initiated: keep companion and server running so download & extraction complete safely.
+                                    this.Invoke((MethodInvoker)delegate {
+                                        lblStatus.Text = "جارٍ تجهيز التحديث...";
+                                    });
                                 }
                             }
                         }
