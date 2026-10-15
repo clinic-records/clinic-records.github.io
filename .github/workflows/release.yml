@@ -29,9 +29,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
-        env:
-          GYP_MSVS_VERSION: '2022'
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild esbuild
 
       - name: Compile TypeScript
         run: npm run build
@@ -63,7 +63,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild esbuild
 
       - name: Compile TypeScript
         run: npm run build
@@ -94,7 +96,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild esbuild
 
       - name: Compile TypeScript
         run: npm run build
@@ -125,7 +129,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild esbuild
 
       - name: Compile TypeScript
         run: npm run build
