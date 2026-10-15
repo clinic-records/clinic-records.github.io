@@ -26,11 +26,11 @@ function encodeDnsName(name: string): Buffer {
   return Buffer.concat(bufs);
 }
 
-function buildARecord(name: string, ip: string, ttl = 120): Buffer {
+function buildARecord(name: string, ip: string, ttl = 120, isUnicast = false): Buffer {
   const nameBuf = encodeDnsName(name);
   const data = Buffer.alloc(10);
   data.writeUInt16BE(1, 0); // Type A (IPv4)
-  data.writeUInt16BE(0x8001, 2); // Class IN + Cache-Flush bit (RFC 6762 Section 10.2)
+  data.writeUInt16BE(isUnicast ? 1 : 0x8001, 2); // Class IN (Cache-Flush bit ONLY on multicast per RFC 6762 Section 10.2)
   data.writeUInt32BE(ttl, 4); // TTL
   data.writeUInt16BE(4, 8); // RDLENGTH 4 bytes
   const ipOctets = ip.split('.').map(Number);
@@ -49,12 +49,12 @@ function buildPtrRecord(serviceType: string, instanceName: string, ttl = 120): B
   return Buffer.concat([nameBuf, data, targetBuf]);
 }
 
-function buildSrvRecord(instanceName: string, targetHost: string, port: number, ttl = 120): Buffer {
+function buildSrvRecord(instanceName: string, targetHost: string, port: number, ttl = 120, isUnicast = false): Buffer {
   const nameBuf = encodeDnsName(instanceName);
   const targetBuf = encodeDnsName(targetHost);
   const data = Buffer.alloc(16);
   data.writeUInt16BE(33, 0); // Type SRV
-  data.writeUInt16BE(0x8001, 2); // Class IN + Flush
+  data.writeUInt16BE(isUnicast ? 1 : 0x8001, 2); // Class IN + Flush only on multicast
   data.writeUInt32BE(ttl, 4); // TTL
   data.writeUInt16BE(6 + targetBuf.length, 8); // RDLENGTH
   data.writeUInt16BE(0, 10); // Priority
@@ -63,9 +63,9 @@ function buildSrvRecord(instanceName: string, targetHost: string, port: number, 
   return Buffer.concat([nameBuf, data, targetBuf]);
 }
 
-function buildDnsPacket(answers: Buffer[]): Buffer {
+function buildDnsPacket(answers: Buffer[], txId = 0): Buffer {
   const header = Buffer.alloc(12);
-  header.writeUInt16BE(0, 0); // Transaction ID (0 in mDNS)
+  header.writeUInt16BE(txId, 0); // Transaction ID (echoed back for unicast Android queries, 0 on multicast)
   header.writeUInt16BE(0x8400, 2); // Flags: Standard Response, Authoritative
   header.writeUInt16BE(0, 4); // Questions
   header.writeUInt16BE(answers.length, 6); // Answers count
@@ -203,31 +203,36 @@ class MdnsService {
     const flags = msg.readUInt16BE(2);
     if ((flags & 0x8000) !== 0) return; // Ignore responses from other mDNS devices
 
+    const txId = msg.readUInt16BE(0);
+
     const msgLower = msg.toString('binary').toLowerCase();
     const matchesDomain =
-      msgLower.includes('clinic\x05local') ||
-      msgLower.includes('clinic.local') ||
-      msgLower.includes('clinic\x00') ||
+      msgLower.includes('clinic') ||
       msgLower.includes('_http\x04_tcp');
 
     if (matchesDomain) {
       try {
-        const answers = [
-          buildARecord(this.domain, this.currentIp),
-          buildPtrRecord('_http._tcp.local', `clinic._http._tcp.local`),
-          buildSrvRecord(`clinic._http._tcp.local`, this.domain, this.currentPort),
+        // 1. Standard Multicast response (txId = 0, Cache-Flush enabled for iOS, macOS, Linux)
+        const multicastAnswers = [
+          buildARecord(this.domain, this.currentIp, 120, false),
+          buildPtrRecord('_http._tcp.local', `clinic._http._tcp.local`, 120),
+          buildSrvRecord(`clinic._http._tcp.local`, this.domain, this.currentPort, 120, false),
         ];
+        const multicastPacket = buildDnsPacket(multicastAnswers, 0);
+        this.socket.send(multicastPacket, 0, multicastPacket.length, MDNS_PORT, MDNS_MULTICAST_IPV4);
 
-        const responsePacket = buildDnsPacket(answers);
-
-        // Send multicast response
-        this.socket.send(responsePacket, 0, responsePacket.length, MDNS_PORT, MDNS_MULTICAST_IPV4);
-
-        // Also send direct unicast response if query originated from a non-5353 port
-        if (rinfo.port !== MDNS_PORT) {
-          this.socket.send(responsePacket, 0, responsePacket.length, rinfo.port, rinfo.address);
-        }
-      } catch {}
+        // 2. Direct Unicast response (matching query txId, NO Cache-Flush bit, sent straight to client IP/port)
+        // Strictly required for Android 12+ strict AOSP mDNS resolver & Windows unicast queriers
+        const unicastAnswers = [
+          buildARecord(this.domain, this.currentIp, 120, true),
+          buildPtrRecord('_http._tcp.local', `clinic._http._tcp.local`, 120),
+          buildSrvRecord(`clinic._http._tcp.local`, this.domain, this.currentPort, 120, true),
+        ];
+        const unicastPacket = buildDnsPacket(unicastAnswers, txId);
+        this.socket.send(unicastPacket, 0, unicastPacket.length, rinfo.port, rinfo.address);
+      } catch (err: any) {
+        console.warn('mDNS query response notice:', err?.message);
+      }
     }
   }
 }
