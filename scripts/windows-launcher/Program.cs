@@ -1,3 +1,13 @@
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  WARNING: This file is compiled with csc.exe (.NET Framework)      ║
+// ║  which only supports C# 5.0. The following are FORBIDDEN:         ║
+// ║    ❌ await inside catch/finally blocks  (C# 6.0+)                ║
+// ║    ❌ string interpolation $"..."         (C# 6.0+)                ║
+// ║    ❌ null-conditional ?.                 (C# 6.0+)                ║
+// ║    ❌ expression-bodied members =>        (C# 6.0+)                ║
+// ║    ❌ pattern matching                    (C# 7.0+)                ║
+// ║  Use Thread.Sleep() instead of await Task.Delay() in catch blocks ║
+// ╚══════════════════════════════════════════════════════════════════════╝
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -126,7 +136,8 @@ namespace ClinicRecordsLauncher
 
         private void InitializeComponent()
         {
-            this.Text = "سجلات العيادة الطبية - Clinic Records";
+            string curVer = GetCurrentAppVersion();
+            this.Text = "سجلات العيادة الطبية - Clinic Records (v" + curVer + ")";
             this.Size = new Size(480, 650);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -150,7 +161,7 @@ namespace ClinicRecordsLauncher
 
             // 1. Header Label
             Label lblHeader = new Label();
-            lblHeader.Text = "لوحة تحكم خادم العيادة";
+            lblHeader.Text = "لوحة تحكم خادم العيادة (v" + curVer + ")";
             lblHeader.Font = new Font("Segoe UI", 14f, FontStyle.Bold);
             lblHeader.ForeColor = Color.FromArgb(15, 23, 42);
             lblHeader.TextAlign = ContentAlignment.MiddleCenter;
@@ -973,7 +984,8 @@ namespace ClinicRecordsLauncher
                         progressBar.Value = 100;
                         lblPercent.Text = "100%";
                         lblStatus.Text = "✅ تم تثبيت التحديث! جارٍ إعادة تشغيل البرنامج...";
-                        await Task.Delay(1000);
+                        // NOTE: Cannot use 'await Task.Delay()' here — csc.exe (C# 5.0) forbids await in catch blocks (CS1985)
+                        Thread.Sleep(1000);
                         Application.Exit();
                     }
                 }

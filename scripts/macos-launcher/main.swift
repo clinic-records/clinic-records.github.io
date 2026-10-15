@@ -325,8 +325,11 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
         
+        let currentVer = getCurrentAppVersion()
+        window?.title = "سجلات العيادة الطبية - لوحة التحكم (\(currentVer))"
+
         // 1. Header Title
-        let titleLabel = NSTextField(labelWithString: "لوحة تحكم خادم العيادة")
+        let titleLabel = NSTextField(labelWithString: "لوحة تحكم خادم العيادة (\(currentVer))")
         titleLabel.font = NSFont.boldSystemFont(ofSize: 18)
         titleLabel.alignment = .center
         titleLabel.frame = NSRect(x: 20, y: 585, width: 420, height: 26)
