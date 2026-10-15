@@ -29,7 +29,8 @@ function run(cmd, label) {
 function parseVersion(targetInput, currentVersion) {
   const parts = currentVersion.replace(/^v/, '').split('.').map(Number);
   if (!targetInput) {
-    return currentVersion.replace(/^v/, '');
+    // Default to patch increment if no argument provided
+    return `${parts[0]}.${parts[1]}.${parts[2] + 1}`;
   }
 
   const clean = targetInput.trim().toLowerCase();
