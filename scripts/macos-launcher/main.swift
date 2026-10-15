@@ -431,29 +431,29 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         toggleButton.frame = NSRect(x: 30, y: 125, width: 195, height: 34)
         contentView.addSubview(toggleButton)
         
-        restartButton = NSButton(title: "🔄 إعادة تشغيل", target: self, action: #selector(restartServerClicked))
+        restartButton = NSButton(title: "إعادة تشغيل", target: self, action: #selector(restartServerClicked))
         restartButton.bezelStyle = .rounded
         restartButton.frame = NSRect(x: 235, y: 125, width: 195, height: 34)
         contentView.addSubview(restartButton)
         
         // Row 2: Quick Backup Now & Backups Folder
-        quickBackupButton = NSButton(title: "💾 أخذ نسخة احتياطية الآن", target: self, action: #selector(quickBackupClicked))
+        quickBackupButton = NSButton(title: "أخذ نسخة احتياطية الآن", target: self, action: #selector(quickBackupClicked))
         quickBackupButton.bezelStyle = .rounded
         quickBackupButton.frame = NSRect(x: 30, y: 85, width: 195, height: 34)
         contentView.addSubview(quickBackupButton)
 
-        backupsButton = NSButton(title: "📁 مجلد النسخ الاحتياطية", target: self, action: #selector(openBackupsClicked))
+        backupsButton = NSButton(title: "مجلد النسخ الاحتياطية", target: self, action: #selector(openBackupsClicked))
         backupsButton.bezelStyle = .rounded
         backupsButton.frame = NSRect(x: 235, y: 85, width: 195, height: 34)
         contentView.addSubview(backupsButton)
         
         // Row 3: Desktop Shortcut & Update Checker
-        shortcutButton = NSButton(title: "🖥️ اختصار سطح المكتب", target: self, action: #selector(createShortcutClicked))
+        shortcutButton = NSButton(title: "اختصار سطح المكتب", target: self, action: #selector(createShortcutClicked))
         shortcutButton.bezelStyle = .rounded
         shortcutButton.frame = NSRect(x: 30, y: 48, width: 195, height: 32)
         contentView.addSubview(shortcutButton)
 
-        updateButton = NSButton(title: "🔄 فحص التحديثات", target: self, action: #selector(checkUpdatesClicked))
+        updateButton = NSButton(title: "فحص التحديثات", target: self, action: #selector(checkUpdatesClicked))
         updateButton.bezelStyle = .rounded
         updateButton.frame = NSRect(x: 235, y: 48, width: 195, height: 32)
         contentView.addSubview(updateButton)
@@ -632,16 +632,11 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
                     let alert = NSAlert()
                     alert.messageText = "يوجد تحديث جديد متاح (\(latestTag))!"
                     alert.informativeText = "الإصدار الحالي: \(currentVer)\nالإصدار الأحدث: \(latestTag)\n\nهل ترغب في تثبيت التحديث وإعادة تشغيل المنظومة تلقائياً الآن؟\n(ملاحظة: سيتم أخذ نسخة احتياطية تأمينية للبيانات تلقائياً قبل بدء التحديث)"
-                    alert.addButton(withTitle: "🚀 تثبيت التحديث التلقائي الآن")
-                    alert.addButton(withTitle: "🌐 فتح صفحة التحميل")
+                    alert.addButton(withTitle: "تثبيت التحديث الآن")
                     alert.addButton(withTitle: "إلغاء")
                     let res = alert.runModal()
                     if res == .alertFirstButtonReturn {
                         self?.startInPlaceUpdate(latestTag: latestTag, htmlUrl: htmlUrl)
-                    } else if res == .alertSecondButtonReturn {
-                        if let u = URL(string: htmlUrl) {
-                            NSWorkspace.shared.open(u)
-                        }
                     }
                 } else {
                     let alert = NSAlert()
@@ -753,7 +748,7 @@ class UpdateProgressWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
         
-        let titleLabel = NSTextField(labelWithString: "🚀 جارٍ تثبيت التحديث التلقائي للمنظومة...")
+        let titleLabel = NSTextField(labelWithString: "جارٍ تثبيت تحديث المنظومة...")
         titleLabel.font = NSFont.boldSystemFont(ofSize: 14)
         titleLabel.alignment = .right
         titleLabel.frame = NSRect(x: 20, y: 120, width: 400, height: 22)

@@ -286,7 +286,7 @@ namespace ClinicRecordsLauncher
             this.Controls.Add(btnToggleServer);
 
             btnRestartServer = new Button();
-            btnRestartServer.Text = "🔄 إعادة تشغيل";
+            btnRestartServer.Text = "إعادة تشغيل";
             btnRestartServer.Bounds = new Rectangle(235, 440, 195, 36);
             btnRestartServer.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
             btnRestartServer.Click += async (s, e) => await RestartServer();
@@ -294,14 +294,14 @@ namespace ClinicRecordsLauncher
 
             // Row 2: Quick Backup Now & Backups Folder
             btnQuickBackup = new Button();
-            btnQuickBackup.Text = "💾 أخذ نسخة احتياطية الآن";
+            btnQuickBackup.Text = "أخذ نسخة احتياطية الآن";
             btnQuickBackup.Bounds = new Rectangle(30, 484, 195, 36);
             btnQuickBackup.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             btnQuickBackup.Click += async (s, e) => await QuickBackupNow();
             this.Controls.Add(btnQuickBackup);
 
             btnOpenBackups = new Button();
-            btnOpenBackups.Text = "📁 مجلد النسخ الاحتياطية";
+            btnOpenBackups.Text = "مجلد النسخ الاحتياطية";
             btnOpenBackups.Bounds = new Rectangle(235, 484, 195, 36);
             btnOpenBackups.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             btnOpenBackups.Click += (s, e) => OpenBackupsFolder();
@@ -309,14 +309,14 @@ namespace ClinicRecordsLauncher
 
             // Row 3: Desktop Shortcut & Update Check
             btnCreateShortcut = new Button();
-            btnCreateShortcut.Text = "🖥️ اختصار سطح المكتب";
+            btnCreateShortcut.Text = "اختصار سطح المكتب";
             btnCreateShortcut.Bounds = new Rectangle(30, 528, 195, 34);
             btnCreateShortcut.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             btnCreateShortcut.Click += (s, e) => CreateDesktopShortcut(true);
             this.Controls.Add(btnCreateShortcut);
 
             btnCheckUpdate = new Button();
-            btnCheckUpdate.Text = "🔄 فحص التحديثات";
+            btnCheckUpdate.Text = "فحص التحديثات";
             btnCheckUpdate.Bounds = new Rectangle(235, 528, 195, 34);
             btnCheckUpdate.Font = new Font("Segoe UI", 9f, FontStyle.Regular);
             btnCheckUpdate.Click += async (s, e) => await CheckForUpdates();
@@ -875,7 +875,7 @@ namespace ClinicRecordsLauncher
             this.ControlBox = false;
 
             lblTitle = new Label();
-            lblTitle.Text = "🚀 جارٍ تثبيت التحديث التلقائي للمنظومة...";
+            lblTitle.Text = "جارٍ تثبيت تحديث المنظومة...";
             lblTitle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
             lblTitle.Bounds = new Rectangle(20, 15, 385, 24);
             this.Controls.Add(lblTitle);
