@@ -329,7 +329,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         window?.title = "سجلات العيادة الطبية - لوحة التحكم (\(currentVer))"
 
         // 1. Header Title
-        let titleLabel = NSTextField(labelWithString: "لوحة تحكم خادم العيادة (\(currentVer))")
+        let titleLabel = NSTextField(labelWithString: "لوحة تحكم خادم العيادة")
         titleLabel.font = NSFont.boldSystemFont(ofSize: 18)
         titleLabel.alignment = .center
         titleLabel.frame = NSRect(x: 20, y: 585, width: 420, height: 26)
@@ -459,7 +459,7 @@ class DashboardWindowController: NSWindowController, NSWindowDelegate {
         contentView.addSubview(updateButton)
         
         // 7. Footer Hint
-        let footerHint = NSTextField(labelWithString: "ⓘ إغلاق هذه النافذة يُبقي السيرفر يعمل في شريط القوائم العلوي")
+        let footerHint = NSTextField(labelWithString: "Clinic Records \(currentVer)  •  ⓘ إغلاق هذه النافذة يُبقي السيرفر يعمل في شريط القوائم العلوي")
         footerHint.font = NSFont.systemFont(ofSize: 10.5)
         footerHint.textColor = .tertiaryLabelColor
         footerHint.alignment = .center

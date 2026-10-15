@@ -161,7 +161,7 @@ namespace ClinicRecordsLauncher
 
             // 1. Header Label
             Label lblHeader = new Label();
-            lblHeader.Text = "لوحة تحكم خادم العيادة (v" + curVer + ")";
+            lblHeader.Text = "لوحة تحكم خادم العيادة";
             lblHeader.Font = new Font("Segoe UI", 14f, FontStyle.Bold);
             lblHeader.ForeColor = Color.FromArgb(15, 23, 42);
             lblHeader.TextAlign = ContentAlignment.MiddleCenter;
@@ -324,7 +324,7 @@ namespace ClinicRecordsLauncher
 
             // 7. Footer Hint
             Label lblFooter = new Label();
-            lblFooter.Text = "ⓘ إغلاق هذه النافذة يُبقي السيرفر يعمل في شريط المهام بجوار الساعة";
+            lblFooter.Text = "Clinic Records v" + curVer + "  •  ⓘ إغلاق هذه النافذة يُبقي السيرفر يعمل في شريط المهام";
             lblFooter.Font = new Font("Segoe UI", 8.5f, FontStyle.Italic);
             lblFooter.ForeColor = Color.FromArgb(148, 163, 184);
             lblFooter.TextAlign = ContentAlignment.MiddleCenter;
